@@ -5,3 +5,10 @@
    fun:fputs
    fun:out_print_func
 }
+{
+   pmemtrace_puts
+   Helgrind:Race
+   ...
+   fun:fputs
+   fun:pmemtrace_puts
+}

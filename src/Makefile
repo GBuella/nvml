@@ -35,7 +35,7 @@
 TOP := $(dir $(lastword $(MAKEFILE_LIST)))..
 include $(TOP)/src/common.inc
 
-TARGETS = libpmem libvmem libpmemblk libpmemlog libpmemobj libvmmalloc tools
+TARGETS = libpmem libvmem libpmemblk libpmemlog libpmemobj libvmmalloc libpmemtrace tools
 ALL_TARGETS = $(TARGETS) librpmem examples benchmarks
 CLEAN_TARGETS = $(ALL_TARGETS) test jemalloc
 CLOBBER_TARGETS = $(ALL_TARGETS) test jemalloc
