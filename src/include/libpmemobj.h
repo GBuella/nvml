@@ -316,26 +316,7 @@ extern __thread struct _pobj_pcache {
 /*
  * Returns the direct pointer of an object.
  */
-static inline void *
-pmemobj_direct(PMEMoid oid)
-{
-	if (oid.off == 0 || oid.pool_uuid_lo == 0)
-		return NULL;
-
-	if (_pobj_cache_invalidate != _pobj_cached_pool.invalidate ||
-		_pobj_cached_pool.uuid_lo != oid.pool_uuid_lo) {
-		_pobj_cached_pool.invalidate = _pobj_cache_invalidate;
-
-		if (!(_pobj_cached_pool.pop = pmemobj_pool_by_oid(oid))) {
-			_pobj_cached_pool.uuid_lo = 0;
-			return NULL;
-		}
-
-		_pobj_cached_pool.uuid_lo = oid.pool_uuid_lo;
-	}
-
-	return (void *)((uintptr_t)_pobj_cached_pool.pop + oid.off);
-}
+void *pmemobj_direct(PMEMoid oid);
 
 #define	DIRECT_RW(o) (\
 {__typeof__(o) _o; _o._type = NULL; (void)_o;\

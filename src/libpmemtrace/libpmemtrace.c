@@ -11,6 +11,7 @@
 #include <pthread.h>
 
 #include "libpmemobj.h"
+#include "pmemobj_formats.h"
 
 #include "uint64_avl.h"
 
@@ -264,7 +265,7 @@ pmemtrace_oid_release(PMEMoid oid)
 	util_mutex_lock(&oid_store_mutex);
 	if (uint64_avl_containts(&new_oid_tree, oid.pool_uuid_lo + oid.off)) {
 		pmemtrace_log("object released without use: {"
-			".pool_uuid_lo=%" PRIx64 ", .off=%" PRIu64 "}",
+			".pool_uuid_lo=0x%" PRIx64 ", .off=%" PRIu64 "}",
 			oid.pool_uuid_lo, oid.off);
 		uint64_avl_remove(&new_oid_tree, oid.pool_uuid_lo);
 	}
@@ -279,11 +280,24 @@ hook_pmemobj_direct(PMEMoid oid, void* (*forward)(PMEMoid))
 	return forward(oid);
 }
 
+/* In the case of pmemobj_free,
+ * the argument must be logged before the call,
+ * since the integer ids are cleared by the call.
+ * Thus it is another exception, not handled by
+ * the generate_forwarders.sed script
+ */
 void
-hook_pmemobj_free(PMEMoid *oidp, void (*forward)(PMEMoid*))
+pmemobj_free(PMEMoid *oidp)
 {
+	pmemtrace_log(format_pmemobj_free, oidp,
+		oidp ? oidp->pool_uuid_lo : 0,
+		oidp ? oidp->off : 0);
+	static void (*forward)(PMEMoid*);
+
+	pmemtrace_setup_forward((void**)&forward, __func__);
 	if (oidp != NULL)
 		pmemtrace_oid_release(*oidp);
 
 	forward(oidp);
 }
+

@@ -1,4 +1,7 @@
 #n
+/pmemobj_free/{
+	n
+}
 h
 1{
 	i\\#include "libpmemtrace.h"
