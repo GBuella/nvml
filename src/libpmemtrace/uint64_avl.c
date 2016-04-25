@@ -297,17 +297,19 @@ remove_from_left(struct node *root)
 	assert(root->left != 0);
 
 	struct node *child_left = root + root->left;
+	struct node *removed;
 
 	if (child_left->left == 0) {
 		if (child_left->right == 0)
 			root->left = 0;
 		else
 			root->left += child_left->right;
-		setup_height(root);
-		return child_left;
+		removed =  child_left;
 	} else {
-		return remove_from_left(child_left);
+		removed =  remove_from_left(child_left);
 	}
+	setup_height(root);
+	return removed;
 }
 
 /*
@@ -334,18 +336,25 @@ remove(struct node *node)
 	} else {
 		if (child_right->left == 0) {
 			node->value = child_right->value;
-			node->right += child_right->right;
+			if (child_right->right != 0)
+				node->right += child_right->right;
+			else
+				node->right = 0;
 			setup_height(node);
 			return child_right;
 		} else if (child_left->right == 0) {
 			node->value = child_left->value;
-			node->left += child_left->left;
+			if (child_left->left != 0)
+				node->left += child_left->left;
+			else
+				node->left = 0;
 			setup_height(node);
 			return child_left;
 		} else {
 			struct node *moved_node = remove_from_left(child_right);
 
 			node->value = moved_node->value;
+			setup_height(node);
 			return moved_node;
 		}
 	}
@@ -399,6 +408,15 @@ uint64_avl_remove(struct uint64_avl *tree, uint64_t value)
 	if (tree->count == 0)
 		return;
 
+	if (tree->count == 1) {
+		if (first_node(tree)->value == value) {
+			tree->data = shrink(tree->data, tree->memory_usage);
+			tree->memory_usage = 0;
+			tree->count = 0;
+		}
+		return;
+	}
+
 	struct node *removed;
 
 	if (first_node(tree)->value == value) {
@@ -409,6 +427,7 @@ uint64_avl_remove(struct uint64_avl *tree, uint64_t value)
 
 	if (removed != NULL) {
 		if (removed != last_node(tree)) {
+			assert(removed != first_node(tree));
 			overwrite(removed, last_node(tree));
 			reroute(tree->data, removed, last_node(tree));
 		}
