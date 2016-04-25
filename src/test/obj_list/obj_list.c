@@ -1100,4 +1100,3 @@ pmemobj_direct(PMEMoid oid)
 
 	return (void *)((uintptr_t)_pobj_cached_pool.pop + oid.off);
 }
-

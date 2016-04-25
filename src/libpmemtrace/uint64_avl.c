@@ -1,5 +1,5 @@
 
-#define _GNU_SOURCE
+#define	_GNU_SOURCE
 #include <assert.h>
 #include <stddef.h>
 #include <err.h>
@@ -9,7 +9,7 @@
 
 #include "uint64_avl.h"
 
-#define PAGESIZE ((size_t)0x1000)
+#define	PAGESIZE ((size_t)0x1000)
 
 #pragma GCC diagnostic ignored "-Wconversion"
 
@@ -20,19 +20,19 @@ struct node {
 	uint8_t height:6;
 };
 
-static struct node*
+static struct node *
 first_node(struct uint64_avl *tree)
 {
-	return ((struct node*)(tree->data));
+	return ((struct node *)(tree->data));
 }
 
-static struct node*
+static struct node *
 last_node(struct uint64_avl *tree)
 {
 	return first_node(tree) + (tree->count - 1);
 }
 
-static void*
+static void *
 allocate_new_page(void)
 {
 	void *address;
@@ -46,13 +46,12 @@ allocate_new_page(void)
 	return address;
 }
 
-static void*
+static void *
 grow(void *address, size_t original_size)
 {
 	if (original_size == 0) {
 		return allocate_new_page();
-	}
-	else {
+	} else {
 		address = mremap(address, original_size,
 			original_size + PAGESIZE,
 			MREMAP_MAYMOVE);
@@ -62,17 +61,15 @@ grow(void *address, size_t original_size)
 	}
 }
 
-static void*
+static void *
 shrink(void *address, size_t original_size)
 {
 	if (original_size == 0) {
 		return NULL;
-	}
-	else if (original_size == PAGESIZE) {
+	} else if (original_size == PAGESIZE) {
 		(void) munmap(address, original_size);
 		return NULL;
-	}
-	else {
+	} else {
 		address = mremap(address, original_size,
 			original_size - PAGESIZE,
 			MREMAP_MAYMOVE);
@@ -96,7 +93,7 @@ uint64_avl_destroy(struct uint64_avl *tree)
 	if (tree->memory_usage != 0)
 		(void) munmap(tree->data, tree->memory_usage);
 
-	memset(tree, 0, sizeof(*tree));
+	memset(tree, 0, sizeof (*tree));
 }
 
 static void
@@ -184,16 +181,16 @@ rebalance(struct node *root)
 	if (root->left == 0) {
 		if (root->right != 0)
 			diff = root[root->right].height;
-	}
-	else if (root->right == 0) {
+	} else if (root->right == 0) {
 		if (root->left != 0)
 			diff = -root[root->left].height;
-	}
-	else {
+	} else {
 		diff = root[root->right].height - root[root->left].height;
 	}
 
-	if (diff < -1)
+	// cstyle script on "-1": "missing space after - operator"
+	//  apparently this script is work in progress
+	if (diff < - 1)
 		rotate_right(root);
 	else if (diff > 1)
 		rotate_left(root);
@@ -201,7 +198,7 @@ rebalance(struct node *root)
 
 /* returns the number of nodes inserted - zero or one */
 static int
-insert_under(struct node * restrict cursor, const struct node * restrict new)
+insert_under(struct node *restrict cursor, const struct node *restrict new)
 {
 	if (cursor->value == new->value)
 		return 0;
@@ -209,17 +206,14 @@ insert_under(struct node * restrict cursor, const struct node * restrict new)
 	if (cursor->value < new->value) {
 		if (cursor->left == 0) {
 			cursor->left = new - cursor;
-		}
-		else {
+		} else {
 			if (insert_under(cursor + cursor->left, new) == 0)
 				return 0;
 		}
-	}
-	else {  //  if cursor->value > new->value
+	} else {  //  if cursor->value > new->value
 		if (cursor->right == 0) {
 			cursor->right = new - cursor;
-		}
-		else {
+		} else {
 			if (insert_under(cursor + cursor->right, new) == 0)
 				return 0;
 		}
@@ -233,7 +227,7 @@ insert_under(struct node * restrict cursor, const struct node * restrict new)
 void
 uint64_avl_insert(struct uint64_avl *tree, uint64_t value)
 {
-	if (tree->count * sizeof(struct node) == tree->memory_usage) {
+	if (tree->count * sizeof (struct node) == tree->memory_usage) {
 		tree->data = grow(tree->data, tree->memory_usage);
 		tree->memory_usage += PAGESIZE;
 	}
@@ -246,8 +240,7 @@ uint64_avl_insert(struct uint64_avl *tree, uint64_t value)
 
 	if (tree->count == 0) {
 		tree->count = 1;
-	}
-	else {
+	} else {
 		if (insert_under(tree->data, new) != 0)
 			tree->count++;
 	}
@@ -258,9 +251,9 @@ uint64_avl_insert(struct uint64_avl *tree, uint64_t value)
  * and make it point to dst instead
  */
 static void
-reroute(struct node * restrict cursor,
-	const struct node * restrict dst,
-	const struct node * restrict src)
+reroute(struct node *restrict cursor,
+	const struct node *restrict dst,
+	const struct node *restrict src)
 {
 	if (cursor + cursor->left == src)
 		cursor->left += dst - src;
@@ -277,7 +270,7 @@ reroute(struct node * restrict cursor,
  * keeping the child pointers correct
  */
 static void
-overwrite(struct node * restrict dst, const struct node * restrict src)
+overwrite(struct node *restrict dst, const struct node *restrict src)
 {
 	dst->value = src->value;
 	dst->height = src->height;
@@ -298,11 +291,11 @@ overwrite(struct node * restrict dst, const struct node * restrict src)
  * remove it from the subtree, and return the address
  * of the new free slot
  */
-static struct node*
+static struct node *
 remove_from_left(struct node *root)
 {
 	assert(root->left != 0);
-	
+
 	struct node *child_left = root + root->left;
 
 	if (child_left->left == 0) {
@@ -312,8 +305,7 @@ remove_from_left(struct node *root)
 			root->left += child_left->right;
 		setup_height(root);
 		return child_left;
-	}
-	else {
+	} else {
 		return remove_from_left(child_left);
 	}
 }
@@ -323,7 +315,7 @@ remove_from_left(struct node *root)
  * moving one of its kids into its place
  * if appropriate
  */
-static struct node*
+static struct node *
 remove(struct node *node)
 {
 	struct node *child_left = node + node->left;
@@ -332,30 +324,25 @@ remove(struct node *node)
 	if (node->left == 0) {
 		if (node->right == 0) {
 			return node;
-		}
-		else {
+		} else {
 			overwrite(node, child_right);
 			return child_right;
 		}
-	}
-	else if (node->right == 0) {
+	} else if (node->right == 0) {
 		overwrite(node, child_left);
 		return child_left;
-	}
-	else {
+	} else {
 		if (child_right->left == 0) {
 			node->value = child_right->value;
 			node->right += child_right->right;
 			setup_height(node);
 			return child_right;
-		}
-		else if (child_left->right == 0) {
+		} else if (child_left->right == 0) {
 			node->value = child_left->value;
 			node->left += child_left->left;
 			setup_height(node);
 			return child_left;
-		}
-		else {
+		} else {
 			struct node *moved_node = remove_from_left(child_right);
 
 			node->value = moved_node->value;
@@ -370,7 +357,7 @@ remove(struct node *node)
  * free during removal - not necceseraly the slot
  * which held the value originally
  */
-static struct node*
+static struct node *
 remove_under(struct node *cursor, uint64_t value)
 {
 	struct node *removed = NULL;
@@ -383,20 +370,17 @@ remove_under(struct node *cursor, uint64_t value)
 			removed = remove(left);
 			if (removed == left)
 				cursor->left = 0;
-		}
-		else {
+		} else {
 			removed = remove_under(left, value);
 		}
-	}
-	else if (cursor->value > value && cursor->right != 0) {
+	} else if (cursor->value > value && cursor->right != 0) {
 		struct node *right = cursor + cursor->right;
 
 		if (right->value == value) {
 			removed = remove(right);
 			if (removed == right)
 				cursor->right = 0;
-		}
-		else {
+		} else {
 			removed = remove_under(right, value);
 		}
 	}
@@ -419,8 +403,7 @@ uint64_avl_remove(struct uint64_avl *tree, uint64_t value)
 
 	if (first_node(tree)->value == value) {
 		removed = remove(first_node(tree));
-	}
-	else {
+	} else {
 		removed = remove_under(tree->data, value);
 	}
 
@@ -431,7 +414,7 @@ uint64_avl_remove(struct uint64_avl *tree, uint64_t value)
 		}
 		tree->count--;
 
-		size_t used_mem = (tree->count * sizeof(struct node));
+		size_t used_mem = (tree->count * sizeof (struct node));
 		size_t unused_mem = tree->memory_usage - used_mem;
 
 		if (unused_mem >= PAGESIZE) {
@@ -450,8 +433,7 @@ is_in_subtree(const struct node *cursor, uint64_t value)
 	if (cursor->value < value) {
 		if (cursor->left != 0)
 			return is_in_subtree(cursor + cursor->left, value);
-	}
-	else {
+	} else {
 		if (cursor->right != 0)
 			return is_in_subtree(cursor + cursor->right, value);
 	}

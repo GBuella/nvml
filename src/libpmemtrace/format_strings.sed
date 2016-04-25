@@ -7,15 +7,18 @@ h
 
 }
 
+i\
+
 g
 
-s/^.*%\(.*\)%.*$/static const char format_\1[] = "\1"/p
+s/^.*%\(.*\)%.*$/static const char format_\1[] =\n\t"\1"/p
 
 g
 s/^.*(\(.*\))$/\1,/     #  fetch arguments
 
 s/^void,$/void,/   #  special case for f(void)
 
+s/, /,"\n\t" /g
 s/__restrict //g        #  restrict, struct and const keywords are
 s/struct //g            #  irrelevant for the format string
 s/const //g
@@ -59,6 +62,3 @@ s/^uint64_t$/" = %" PRIu64 "";/
 s/^[a-zA-Z_][a-z_A-Z0-9]*[ ]*\*$/" = %p";/
 s/^/	/
 p
-
-i\
-

@@ -6,13 +6,16 @@ h
 1{
 	i\\#include "libpmemtrace.h"
 	s|.*%\([^_]*\).*%.*$|\#include "\1_formats.h"|p
-	i\
-
 }
+
+i\
 
 g
 
-s/%//gp # print the function prototype verbatim
+s/\s*%/\n/
+s/%//
+s/, /,\n\t\t/g
+p # print the function prototype verbatim
 
 i\{
 
@@ -20,7 +23,9 @@ g
 # generate a pointer to the original functions
 s/%.*%/(*forward)/
 s/$/;/
-s/^/\tstatic /p
+s/^/\tstatic /
+s/, /,\n\t\t/g
+p
 
 
 # generate a variable to hold the return value,
@@ -33,7 +38,7 @@ g
 i\
 
 i\
-	pmemtrace_setup_forward((void**)&forward, __func__);
+	pmemtrace_setup_forward((void **)&forward, __func__);
 
 g
 s|^.*%\(.*\)%.*$|\#ifdef HOOK_\1|p
@@ -49,6 +54,7 @@ s|[^(,]*[ \*]\([a-z_A-Z0-9]*\),|\1, |g
 s|, )|, forward)|
 s|(void,)|(forward)|
 s|%||g
+s/, /,\n\t\t/g
 p
 
 i\\#else
@@ -65,6 +71,7 @@ s|[^(,]*[ \*]\([a-z_A-Z0-9]*\),|\1, |g
 s|, )|)|
 s|(void,)|()|
 s|%||g
+s/, /,\n\t\t/g
 p
 
 i\\#endif
@@ -81,15 +88,15 @@ s/struct //g                 # tokens, keep only
 s/const //g                  # a "type name" form
 
 # a few types get special treatment
-s/PMEMoid \*\([a-zA-Z_0-9]*\), /(const void*)\1, \1 ? \1->pool_uuid_lo : 0, \1 ? \1->off : 0, /g
+s/PMEMoid \*\([a-zA-Z_0-9]*\), /(const void *)\1, \1 ? \1->pool_uuid_lo : 0, \1 ? \1->off : 0, /g
 s/PMEMoid \([a-zA-Z_0-9]*\), /\1.pool_uuid_lo, \1.off, /g
-s/timespec \*\([a-zA-Z_0-9]*\), /(const void*)\1, \1 ? \1->tv_sec : 0, \1 ? \1->tv_nsec : 0, /g
+s/timespec \*\([a-zA-Z_0-9]*\), /(const void *)\1, \1 ? \1->tv_sec : 0, \1 ? \1->tv_nsec : 0, /g
 
 # %s expects char pointer
 s/char \*\([a-zA-Z_0-9]*\), /\1, /g
 
 # but %p expects void pointer
-s/[^, :]\{1,\} \*\([a-zA-Z_0-9]*\), /(const void*)\1, /g
+s/[^, :]\{1,\} \*\([a-zA-Z_0-9]*\), /(const void *)\1, /g
 
 # non pointer type, just use the variable name
 s/enum [^, :]\{1,\} \([a-zA-Z_0-9]*\), /\1, /g
@@ -109,6 +116,8 @@ s/[^, :]\{1,\} \([a-zA-Z_0-9]*\), /\1, /g
 }
 s/^.*pmemtrace_log(/\tpmemtrace_log(/
 
+s/, /,\n\t\t/g
+
 p
 
 g
@@ -127,5 +136,3 @@ g
 }
 
 i\}
-i\
-

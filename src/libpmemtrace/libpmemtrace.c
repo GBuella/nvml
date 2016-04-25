@@ -1,5 +1,5 @@
 
-#define _GNU_SOURCE
+#define	_GNU_SOURCE
 #include <stddef.h>
 #include <stdbool.h>
 #include <dlfcn.h>
@@ -15,14 +15,14 @@
 
 #include "uint64_avl.h"
 
-#define FATAL(x) do { err(1, x); } while (false);
+#define	FATAL(x) do { err(1, x); } while (false);
 #include "sys_util.h"
 
 #include <valgrind/drd.h>
 
 #include "libpmemtrace.h"
 
-#define PMEM_TX_BEGIN_MAX_ARGS 32
+#define	PMEM_TX_BEGIN_MAX_ARGS 32
 
 static FILE *output;
 static bool shall_close_output;
@@ -64,8 +64,7 @@ libpmemtrace_init(void)
 		if (file != NULL) {
 			output = file;
 			shall_close_output = true;
-		}
-		else {
+		} else {
 			perror("opening file specified by PMEMTRACE_PATH");
 		}
 	}
@@ -77,7 +76,8 @@ libpmemtrace_init(void)
 static __attribute__((destructor)) void
 cleanup(void)
 {
-	/* Valgrind complains about some memory
+	/*
+	 * Valgrind complains about some memory
 	 * leaking in libc unless the file
 	 * is closed explicitly
 	 */
@@ -88,15 +88,15 @@ cleanup(void)
 static void
 pmemtrace_puts(const char str[])
 {
-#	ifdef SUPPRESS_FPUTS_DRD_ERROR
+#ifdef SUPPRESS_FPUTS_DRD_ERROR
 	ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN();
-#	endif
+#endif
 
 	(void) fputs(str, output);
 
-#	ifdef SUPPRESS_FPUTS_DRD_ERROR
+#ifdef SUPPRESS_FPUTS_DRD_ERROR
 	ANNOTATE_IGNORE_READS_AND_WRITES_END();
-#	endif
+#endif
 }
 
 void
@@ -107,11 +107,11 @@ pmemtrace_log(const char format[], ...)
 
 	va_list ap;
 	va_start(ap, format);
-	len = vsnprintf(str, sizeof(str) - 1, format, ap);
+	len = vsnprintf(str, sizeof (str) - 1, format, ap);
 	va_end(ap);
 
 	str[len] = '\n';
-	str[len+1] = '\0';
+	str[len + 1] = '\0';
 	pmemtrace_puts(str);
 }
 
@@ -130,7 +130,7 @@ pmemobj_set_funcs(
 	const char *strdup_name = unkown;
 	Dl_info info;
 
-	pmemtrace_setup_forward((void**)&forward, __func__);
+	pmemtrace_setup_forward((void **)&forward, __func__);
 
 	if (dladdr(malloc_func, &info) && info.dli_sname != NULL)
 		malloc_name = info.dli_sname;
@@ -162,10 +162,10 @@ pmemobj_tx_begin(PMEMobjpool *pop, jmp_buf env, ...)
 	int result;
 	va_list argp;
 
-	pmemtrace_setup_forward((void**)&forward, __func__);
+	pmemtrace_setup_forward((void **)&forward, __func__);
 
 	cursor += sprintf(cursor, "pmemobj_tx_begin(%p, (jmp_buf)",
-			(void*) pop);
+			(void *) pop);
 
 	va_start(argp, env);
 	while (lock_count < PMEM_TX_BEGIN_MAX_ARGS) {
@@ -173,12 +173,12 @@ pmemobj_tx_begin(PMEMobjpool *pop, jmp_buf env, ...)
 		if (lock_types[lock_count] == TX_LOCK_NONE)
 			break;
 
-		locks[lock_count] = va_arg(argp, void*);
+		locks[lock_count] = va_arg(argp, void *);
 
 		cursor += snprintf(cursor,
-			sizeof(log_buffer) - (size_t)(cursor - log_buffer),
+			sizeof (log_buffer) - (size_t)(cursor - log_buffer),
 			", %d, %p",
-			lock_types[lock_count], (void*)locks[lock_count]);
+			lock_types[lock_count], (void *)locks[lock_count]);
 
 		++lock_count;
 	}
@@ -188,7 +188,7 @@ pmemobj_tx_begin(PMEMobjpool *pop, jmp_buf env, ...)
 		FATAL("pmemobj_tx_begin hook function failure");
 
 	result = forward(pop, env,
-		//{{{
+		// {{{
 		lock_types[0],  locks[0],  lock_types[1],  locks[1],
 		lock_types[1],  locks[1],  lock_types[2],  locks[2],
 		lock_types[2],  locks[2],  lock_types[3],  locks[3],
@@ -220,10 +220,10 @@ pmemobj_tx_begin(PMEMobjpool *pop, jmp_buf env, ...)
 		lock_types[28], locks[28], lock_types[29], locks[29],
 		lock_types[29], locks[29], lock_types[30], locks[30],
 		lock_types[30], locks[30], lock_types[31], locks[31]);
-		//}}}
+		// }}}
 
 	cursor += snprintf(cursor,
-		sizeof(log_buffer) - (size_t)(cursor - log_buffer),
+		sizeof (log_buffer) - (size_t)(cursor - log_buffer),
 		") = %d",
 		result);
 
@@ -273,14 +273,15 @@ pmemtrace_oid_release(PMEMoid oid)
 	util_mutex_unlock(&oid_store_mutex);
 }
 
-void*
-hook_pmemobj_direct(PMEMoid oid, void* (*forward)(PMEMoid))
+void *
+hook_pmemobj_direct(PMEMoid oid, void *(*forward)(PMEMoid))
 {
 	pmemtrace_oid_use(oid);
 	return forward(oid);
 }
 
-/* In the case of pmemobj_free,
+/*
+ * In the case of pmemobj_free,
  * the argument must be logged before the call,
  * since the integer ids are cleared by the call.
  * Thus it is another exception, not handled by
@@ -292,12 +293,11 @@ pmemobj_free(PMEMoid *oidp)
 	pmemtrace_log(format_pmemobj_free, oidp,
 		oidp ? oidp->pool_uuid_lo : 0,
 		oidp ? oidp->off : 0);
-	static void (*forward)(PMEMoid*);
+	static void (*forward)(PMEMoid *);
 
-	pmemtrace_setup_forward((void**)&forward, __func__);
+	pmemtrace_setup_forward((void **)&forward, __func__);
 	if (oidp != NULL)
 		pmemtrace_oid_release(*oidp);
 
 	forward(oidp);
 }
-
