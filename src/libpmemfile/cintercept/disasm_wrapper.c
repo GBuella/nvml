@@ -32,16 +32,62 @@
 
 /*
  * disasm_wrapper.c -- connecting the interceptor code
- * to the disassembler code from the nasm project.
+ * to the disassembler code from the capstone project.
+ *
+ * See:
+ * http://www.capstone-engine.org/lang_c.html
  */
 
 #include "intercept.h"
 #include "intercept_util.h"
 #include "disasm_wrapper.h"
 
-#include "disasm.h"
+#include <string.h>
+#include <syscall.h>
+#include <capstone/capstone.h>
 
-#define SEG_RMREG 4
+struct intercept_disasm_context {
+	csh handle;
+	cs_insn *insn;
+	const unsigned char *begin;
+	const unsigned char *end;
+};
+
+struct intercept_disasm_context *
+intercept_disasm_init(const unsigned char *begin, const unsigned char *end)
+{
+	struct intercept_disasm_context *context;
+
+	context = xmmap_anon(sizeof(*context));
+	context->begin = begin;
+	context->end = end;
+
+	/*
+	 * Initialize the disassembler.
+	 * The handle here must be passed to capstone each time it is used.
+	 */
+	if (cs_open(CS_ARCH_X86, CS_MODE_64, &context->handle) != CS_ERR_OK)
+		xabort();
+
+	/*
+	 * Kindly ask capstone to return some details about the instruction.
+	 * Without this, it only prints the instruction, and we would need
+	 * to parse the resulting string.
+	 */
+	cs_option(context->handle, CS_OPT_DETAIL, CS_OPT_ON);
+
+	context->insn = cs_malloc(context->handle);
+
+	return context;
+}
+
+void
+intercept_disasm_destroy(struct intercept_disasm_context *context)
+{
+	cs_free(context->insn, 1);
+	cs_close(&context->handle);
+	(void) syscall_no_intercept(SYS_munmap, context, sizeof(*context));
+}
 
 struct intercept_disasm_context *
 intercept_disasm_init(const unsigned char *begin, const unsigned char *end)
@@ -65,60 +111,61 @@ intercept_disasm_next_instruction(struct intercept_disasm_context *context,
 	(void) context;
 
 	struct intercept_disasm_result result;
-	iflag_t prefer;
-	iflag_clear_all(&prefer);
-	struct insn instruction;
-	const struct itemplate *instruction_template;
+	const unsigned char *start = code;
+	size_t size = (size_t)(context->end - code + 1);
+	uint64_t address;
 
-	result.length = disasm(code, 64, &prefer,
-				&instruction, &instruction_template);
+	if (!cs_disasm_iter(context->handle, &start, &size,
+	    &address, context->insn)) {
+		result.length = 0;
+		return result;
+	}
+
+	result.length = context->insn->size;
 
 	if (result.length == 0)
 		return result;
 
-/*
- * replicate the way nasm decides about an operand being IP relative
- * I don't fully understand this code right now.
- */
+	result.is_syscall = (context->insn->id == X86_INS_SYSCALL);
+
+	result.is_call = (context->insn->id == X86_INS_CALL);
+
+	result.is_ret = (context->insn->id == X86_INS_RET);
 
 	result.has_ip_relative_opr = false;
 
-	for (int i = 0; i < instruction_template->operands; ++i) {
-		opflags_t t = instruction_template->opd[i];
+	for (uint8_t op_i = 0;
+	    op_i < context->insn->detail->x86.op_count;
+	    ++op_i) {
+		cs_x86_op *op = context->insn->detail->x86.operands + op_i;
 
-		if (((t & (REGISTER | FPUREG)) ||
-		    (instruction.oprs[i].segment & SEG_RMREG)) ||
-		    (!(UNITY & ~t)) ||
-		    (t & IMMEDIATE) ||
-		    (!(MEM_OFFS & ~t)))
-				continue;
-
-		if (is_class(REGMEM, instruction_template->opd[i])) {
-			if (instruction.oprs[i].eaflags & EAF_REL)
-				result.has_ip_relative_opr = true;
+		switch (op->type) {
+			case X86_OP_REG:
+				if (op->reg == X86_REG_IP ||
+				    op->reg == X86_REG_RIP) {
+					result.has_ip_relative_opr = true;
+				}
+				break;
+			case X86_OP_MEM:
+				if (op->mem.base == X86_REG_IP ||
+				    op->mem.base == X86_REG_RIP ||
+				    op->mem.index == X86_REG_IP ||
+				    op->mem.index == X86_REG_RIP) {
+					result.has_ip_relative_opr = true;
+				}
+			default:
+				break;
 		}
 	}
 
-	result.is_syscall = instruction_template->opcode == I_SYSCALL;
+	result.is_rel_jump = (context->insn->detail->x86.disp != 0);
+	result.jump_delta = context->insn->detail->x86.disp;
 
-	result.is_call = instruction_template->opcode == I_CALL;
+	if (result.is_rel_jump)
+		result.jump_target = code + result.length + result.jump_delta;
 
-	result.is_ret = instruction_template->opcode == I_RET;
-
-	result.is_rel_jump =
-		instruction_template->opcode == I_JMP ||
-		instruction_template->opcode == I_JECXZ ||
-		instruction_template->opcode == I_JCXZ ||
-		instruction_template->opcode == I_JMPE ||
-		instruction_template->opcode == I_JRCXZ ||
-		instruction_template->opcode == I_Jcc ||
-		instruction_template->opcode == I_CALL;
-
-	if (result.is_rel_jump) {
-		result.jump_delta = instruction.oprs[0].offset;
-		result.jump_target =
-		    code + result.length + result.jump_delta;
-	}
+	// TODO: figure this out
+	// result.is_indirect_jump = ??
 
 	return result;
 }
