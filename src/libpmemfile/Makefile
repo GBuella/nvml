@@ -32,7 +32,18 @@
 # src/libpmemfile/Makefile -- Makefile for libpmemfile project
 #
 
-TARGETS = corelib cintercept pmemfile_preload
+TARGETS = corelib
+
+CAPSTONE_AVAILABLE := $(call check_package, capstone)
+
+ifeq ($(CAPSTONE_AVAILABLE),y)
+TARGETS += cintercept pmemfile_preload
+else
+$(info NOTE: Skipping pmemfile interposing library because \
+capstone is missing.)
+endif
+
+
 CLEAN_TARGETS = $(TARGETS)
 CLOBBER_TARGETS = $(TARGETS)
 CSTYLE_TARGETS = $(TARGETS)
