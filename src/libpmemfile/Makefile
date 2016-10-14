@@ -32,6 +32,8 @@
 # src/libpmemfile/Makefile -- Makefile for libpmemfile project
 #
 
+include ../common.inc
+
 TARGETS = corelib
 
 CAPSTONE_AVAILABLE := $(call check_package, capstone)
