@@ -30,17 +30,77 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NVML_CPU_H
-#define NVML_CPU_H 1
+#include <stddef.h>
+#include <errno.h>
+#include <syscall.h>
+#include <sys/mman.h>
 
-/*
- * cpu.h -- definitions for "cpu" module
- */
+#include "mock_corelib.h"
 
-int is_cpu_genuine_intel(void);
-int is_cpu_clflush_present(void);
-int is_cpu_clflushopt_present(void);
-int is_cpu_clwb_present(void);
-int has_ymm_registers(void);
+#include "libcintercept_hook_point.h"
 
-#endif
+static void
+check_pfp(PMEMfilepool *pfp)
+{
+	if (pfp == NULL) {
+		char msg[] = "NULL PMEMfilepool pointer";
+		syscall_no_intercept(SYS_write, 2, msg, sizeof(msg));
+		syscall_no_intercept(SYS_exit_group, 1);
+	}
+}
+
+int
+mock_pmemfile_chdir(PMEMfilepool *pfp, const char *path)
+{
+	// Needed during path resolution
+	check_pfp(pfp);
+
+	(void) path;
+
+	return 0;
+}
+
+int
+mock_pmemfile_lstat(PMEMfilepool *pfp, const char *path, struct stat *buf)
+{
+	// Needed during path resolution
+	check_pfp(pfp);
+
+	(void) path;
+	(void) buf;
+
+	// TODO: write mock info to *buf
+	return 0;
+}
+
+int
+mock_pmemfile_readlink(PMEMfilepool *pfp, const char *path,
+			char *buf, size_t buf_len)
+{
+	// Needed during path resolution
+	check_pfp(pfp);
+
+	(void) path;
+	(void) buf_len;
+
+	buf[0] = '/';
+	buf[1] = 'a';
+	buf[2] = '\0';
+
+	return 2;
+}
+
+char *
+mock_pmemfile_getcwd(PMEMfilepool *pfp, char *buf, size_t buf_len)
+{
+	// Needed during path resolution
+	check_pfp(pfp);
+
+	(void) buf_len;
+
+	buf[0] = '/';
+	buf[1] = '\0';
+
+	return buf;
+}
+

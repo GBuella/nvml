@@ -30,17 +30,84 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NVML_CPU_H
-#define NVML_CPU_H 1
-
 /*
- * cpu.h -- definitions for "cpu" module
+ * mkfs-pmemfile.c -- pmemfile mkfs command source file
  */
+#include <errno.h>
+#include <getopt.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
-int is_cpu_genuine_intel(void);
-int is_cpu_clflush_present(void);
-int is_cpu_clflushopt_present(void);
-int is_cpu_clwb_present(void);
-int has_ymm_registers(void);
+#include "libpmemfile-core.h"
 
-#endif
+static void
+print_version(void)
+{
+	puts("mkfs-pmemfile v0");
+}
+
+static void
+print_usage(FILE *stream, const char *progname)
+{
+	fprintf(stream, "Usage: %s [-v] [-h] size path\n", progname);
+}
+
+static size_t
+parse_size(const char *str)
+{
+	unsigned long long size;
+	char *endptr;
+
+	size = strtoull(str, &endptr, 10);
+	if (*endptr != 0 || errno != 0)
+		return 0;
+
+	return size;
+}
+
+int
+main(int argc, char *argv[])
+{
+	int opt;
+	size_t size;
+	const char *path;
+
+	while ((opt = getopt(argc, argv, "vh")) >= 0) {
+		switch (opt) {
+		case 'v':
+		case 'V':
+			print_version();
+			return 0;
+		case 'h':
+		case 'H':
+			print_usage(stdout, argv[0]);
+			return 0;
+		default:
+			print_usage(stderr, argv[0]);
+			return 2;
+		}
+	}
+
+	if (optind + 2 > argc) {
+		print_usage(stderr, argv[0]);
+		return 2;
+	}
+
+	size = parse_size(argv[optind++]);
+
+	if (size == 0) {
+		puts("Invalid size");
+		print_usage(stderr, argv[0]);
+		return 2;
+	}
+
+	path = argv[optind];
+
+	if (pmemfile_mkfs(path, size, S_IWUSR | S_IRUSR) == NULL) {
+		perror("pmemfile_mkfs ");
+		return 1;
+	}
+
+	return 0;
+}

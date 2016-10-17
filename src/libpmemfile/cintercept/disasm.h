@@ -30,17 +30,24 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NVML_CPU_H
-#define NVML_CPU_H 1
-
 /*
- * cpu.h -- definitions for "cpu" module
+ * disasm.h   header file for disasm.c
  */
 
-int is_cpu_genuine_intel(void);
-int is_cpu_clflush_present(void);
-int is_cpu_clflushopt_present(void);
-int is_cpu_clwb_present(void);
-int has_ymm_registers(void);
+#ifndef NASM_DISASM_H
+#define NASM_DISASM_H
+
+#pragma GCC system_header
+
+#include "iflag.h"
+#include "insns.h"
+#include <stdbool.h>
+
+#define INSN_MAX 32 /* one instruction can't be longer than this */
+
+uint32_t disasm(const uint8_t *data, char *output, int outbufsize, int segsize,
+		int32_t offset, iflag_t *prefer,
+		struct insn *instruction,
+		const struct itemplate **instruction_template);
 
 #endif

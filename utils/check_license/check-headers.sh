@@ -81,7 +81,7 @@ fi
 
 FILES=`git ls-tree -r --name-only HEAD | \
 	grep -v -E -e 'jemalloc' -e 'queue.h' -e 'ListEntry.h' \
-		   -e 'getopt.h' -e 'getopt.c' | \
+		   -e 'getopt.h' -e 'getopt.c' -e 'cintercept/nasm' | \
 	grep    -E -e '*\.[ch]$' -e '*\.[ch]pp$' -e '*\.sh$' \
 		   -e '*\.py$' -e '*\.map$' -e 'Makefile*' -e 'TEST*' | \
 	xargs`

@@ -112,6 +112,10 @@ ifneq ($(SOURCE),)
 OBJS += $(addprefix $(objdir)/, $(patsubst $(COMMON)/%, %, $(SOURCE:.c=.o)))
 endif
 
+ifneq ($(ASMSOURCE),)
+OBJS += $(addprefix $(objdir)/, $(patsubst $(COMMON)/%, %, $(ASMSOURCE:.s=.o)))
+endif
+
 ifneq ($(LIBRARY_NAME),)
 LIB_NAME = lib$(LIBRARY_NAME)
 endif
@@ -212,6 +216,9 @@ ifneq ($(LIBRARY_NAME),)
 endif
 
 $(eval $(cstyle-rule))
+
+$(objdir)/%.o: %.s $(MAKEFILE_DEPS)
+	$(AS) -o $@ $<
 
 $(objdir)/%.o: %.c $(MAKEFILE_DEPS)
 	@mkdir -p $(objdir)/.deps

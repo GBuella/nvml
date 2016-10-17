@@ -30,17 +30,28 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NVML_CPU_H
-#define NVML_CPU_H 1
+#ifndef PMEMFILE_PRELOAD_MOCK_CORELIB_H
+#define PMEMFILE_PRELOAD_MOCK_CORELIB_H
 
-/*
- * cpu.h -- definitions for "cpu" module
- */
+#include "libpmemfile-core.h"
 
-int is_cpu_genuine_intel(void);
-int is_cpu_clflush_present(void);
-int is_cpu_clflushopt_present(void);
-int is_cpu_clwb_present(void);
-int has_ymm_registers(void);
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+struct linux_dirent;
+struct linux_dirent64;
+
+int mock_pmemfile_chdir(PMEMfilepool *, const char *path);
+int mock_pmemfile_lstat(PMEMfilepool *, const char *path, struct stat *buf);
+int mock_pmemfile_readlink(PMEMfilepool *, const char *path,
+			char *buf, size_t buf_len);
+char *mock_pmemfile_getcwd(PMEMfilepool *, char *buf, size_t buf_len);
+
+
+#define pmemfile_chdir mock_pmemfile_chdir
+#define pmemfile_lstat mock_pmemfile_lstat
+#define pmemfile_readlink mock_pmemfile_readlink
+#define pmemfile_getcwd mock_pmemfile_getcwd
 
 #endif

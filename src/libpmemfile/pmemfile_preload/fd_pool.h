@@ -30,17 +30,18 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NVML_CPU_H
-#define NVML_CPU_H 1
+#ifndef PMEMFILE_PRELOAD_FD_POOL_H
+#define PMEMFILE_PRELOAD_FD_POOL_H
 
-/*
- * cpu.h -- definitions for "cpu" module
- */
+#include <stdbool.h>
 
-int is_cpu_genuine_intel(void);
-int is_cpu_clflush_present(void);
-int is_cpu_clflushopt_present(void);
-int is_cpu_clwb_present(void);
-int has_ymm_registers(void);
+#define PMEMFILE_MAX_FD 0x8000
+
+// Use mutexes around any of these, except for fd_pool_has_allocated
+void fd_pool_create(void);
+void fd_pool_destroy(void);
+long fd_pool_fetch_new_fd(void);
+void fd_pool_release_fd(long fd);
+bool fd_pool_has_allocated(long fd);
 
 #endif

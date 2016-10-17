@@ -30,17 +30,58 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NVML_CPU_H
-#define NVML_CPU_H 1
+#ifndef PMEMFILE_PRELOAD_RESOLVE_PATH_H
+#define PMEMFILE_PRELOAD_RESOLVE_PATH_H
 
-/*
- * cpu.h -- definitions for "cpu" module
- */
+#include <sys/stat.h>
+#include <stddef.h>
 
-int is_cpu_genuine_intel(void);
-int is_cpu_clflush_present(void);
-int is_cpu_clflushopt_present(void);
-int is_cpu_clwb_present(void);
-int has_ymm_registers(void);
+struct PMEMfilepool;
+
+struct pool_description {
+	// A path where the mount point is - a directory must exist at this path
+	char mount_point[0x1000];
+
+	// The canonical parent directory of the mount point
+	char mount_point_parent[0x1000];
+
+	size_t len_mount_point_parent;
+
+	// Where the actual pmemfile pool is
+	char poolfile_path[0x1000];
+
+	// Keep the mount point directory open
+	long fd;
+
+	/*
+	 * The inode number of the mount point, and other information that just
+	 * might be useful.
+	 */
+	struct stat stat;
+
+	/*
+	 * The pmemfile pool associated with this mount point.
+	 * If this is NULL, the mount point was not used by the application
+	 * before in this process. Should be initialized on first use.
+	 */
+	PMEMfilepool *pool;
+};
+
+struct path_component {
+	long error_code;
+
+	struct pool_description *pool; // if NULL, path is in kernels FS
+
+	char path[0x1000];
+	size_t path_len;
+};
+
+enum resolve_last_or_not { resolve_last_slink, no_resolve_last_slink };
+
+struct pool_description *lookup_pd_by_inode(__ino_t inode);
+
+void resolve_path(struct pool_description *in_pool, const char *path,
+			struct path_component *result,
+			enum resolve_last_or_not);
 
 #endif

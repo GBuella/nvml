@@ -30,17 +30,102 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NVML_CPU_H
-#define NVML_CPU_H 1
-
 /*
- * cpu.h -- definitions for "cpu" module
+ * pmemfile-cat.c -- pmemfile cat command source file
  */
+#include <errno.h>
+#include <getopt.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-int is_cpu_genuine_intel(void);
-int is_cpu_clflush_present(void);
-int is_cpu_clflushopt_present(void);
-int is_cpu_clwb_present(void);
-int has_ymm_registers(void);
+#include "libpmemfile-core.h"
 
-#endif
+static void
+print_version(void)
+{
+	puts("pmemfile-cat v0");
+}
+
+static void
+print_usage(FILE *stream, const char *progname)
+{
+	fprintf(stream, "Usage: %s [OPTION]... POOL FILE...\n", progname);
+}
+
+static void
+dump_file(PMEMfilepool *pool, const char *path)
+{
+	char buffer[0x10000];
+	ssize_t read_size;
+
+	errno = 0;
+
+	PMEMfile *file = pmemfile_open(pool, path, O_RDONLY, 0);
+
+	if (file == NULL) {
+		perror(path);
+		exit(1);
+	}
+
+	do {
+		read_size = pmemfile_read(pool, file, buffer, sizeof(buffer));
+
+		if (read_size < 0 || errno != 0) {
+			perror(path);
+			exit(1);
+		}
+
+		if (fwrite(buffer, (size_t)read_size, 1, stdout) != 1)
+			abort();
+
+	} while (read_size == sizeof(buffer));
+
+	pmemfile_close(pool, file);
+}
+
+int
+main(int argc, char *argv[])
+{
+	int opt;
+	PMEMfilepool *pool;
+
+	while ((opt = getopt(argc, argv, "vh")) >= 0) {
+		switch (opt) {
+		case 'v':
+		case 'V':
+			print_version();
+			return 0;
+		case 'h':
+		case 'H':
+			print_usage(stdout, argv[0]);
+			return 0;
+		default:
+			print_usage(stderr, argv[0]);
+			return 2;
+		}
+	}
+
+	if (optind == argc) {
+		print_usage(stderr, argv[0]);
+		return 2;
+	}
+
+	pool = pmemfile_pool_open(argv[optind]);
+
+	if (pool == NULL) {
+		perror(argv[optind]);
+		return 1;
+	}
+
+	++optind;
+
+	while (optind < argc)
+		dump_file(pool, argv[optind++]);
+
+	pmemfile_pool_close(pool);
+
+	return 0;
+}

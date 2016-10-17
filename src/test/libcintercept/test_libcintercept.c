@@ -30,17 +30,41 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NVML_CPU_H
-#define NVML_CPU_H 1
-
 /*
- * cpu.h -- definitions for "cpu" module
+ * test_libcintercept.c -- dummy program, to issue some syscalls via libc
  */
 
-int is_cpu_genuine_intel(void);
-int is_cpu_clflush_present(void);
-int is_cpu_clflushopt_present(void);
-int is_cpu_clwb_present(void);
-int has_ymm_registers(void);
+#include <stdio.h>
+#include <stdlib.h>
 
-#endif
+int
+main(int argc, char *argv[])
+{
+	char buffer[0x100];
+	FILE *f;
+	size_t s;
+
+	setvbuf(stdout, NULL, _IOLBF, 0);
+	if (argc < 2)
+		return EXIT_FAILURE;
+
+	if ((f = fopen(argv[1], "r")) == NULL)
+		return EXIT_FAILURE;
+	s = fread(buffer, 1, sizeof(buffer), f);
+	fwrite(buffer, 1, s, stdout);
+	putchar('\n');
+	fclose(f);
+
+	/*
+	 * "c" flag is glibc specific,
+	 * should find a way to test this only
+	 * when glibc is known to be present.
+	 */
+	if ((f = fopen(argv[1], "rc")) == NULL)
+		return EXIT_FAILURE;
+	s = fread(buffer, 1, sizeof(buffer), f);
+	fwrite(buffer, 1, s, stdout);
+	putchar('\n');
+	fclose(f);
+	return EXIT_SUCCESS;
+}

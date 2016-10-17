@@ -30,17 +30,62 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NVML_CPU_H
-#define NVML_CPU_H 1
-
 /*
- * cpu.h -- definitions for "cpu" module
+ * dummy_prog.c - a dummy prog using pmemfile, checking each return value
  */
 
-int is_cpu_genuine_intel(void);
-int is_cpu_clflush_present(void);
-int is_cpu_clflushopt_present(void);
-int is_cpu_clwb_present(void);
-int has_ymm_registers(void);
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
-#endif
+int
+main(int argc, char **argv)
+{
+	int fd;
+	char buf0[] = "Hello #0 World!\n";
+	char buf1[] = "Hello #1 World!\n";
+
+	if (argc < 4)
+		return 1;
+
+	const char *full_path = argv[1];
+	const char *dir = argv[2];
+	const char *relative_path = argv[3];
+
+	if ((fd = open(full_path, O_CREAT | O_RDWR, 0666)) < 0)
+		return 1;
+
+	if (close(fd) != 0)
+		return 1;
+
+	if ((fd = open(full_path, O_WRONLY, 0)) < 0)
+		return 1;
+
+	if (write(fd, buf0, sizeof(buf0)) != sizeof(buf0))
+		return 1;
+
+	if (close(fd) != 0)
+		return 1;
+
+	if (chdir(dir) != 0)
+		return 1;
+
+	if ((fd = open(relative_path, O_CREAT | O_RDWR, 0666)) < 0)
+		return 1;
+
+	if (close(fd) != 0)
+		return 1;
+
+	if ((fd = open(relative_path, O_WRONLY, 0)) < 0)
+		return 1;
+
+	if (write(fd, buf1, sizeof(buf1)) != sizeof(buf1))
+		return 1;
+
+	if (close(fd) != 0)
+		return 1;
+
+	return 0;
+}
