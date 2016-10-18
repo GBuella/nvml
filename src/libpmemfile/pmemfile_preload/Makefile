@@ -48,7 +48,7 @@ SOURCE = \
 
 EXTRA_OBJS += $(LIB_OUTDIR)/libcintercept.a $(LIB_OUTDIR)/libpmemfile-core.a
 
-LIBS += -lpmemobj -lpthread -lcapstone
+LIBS += -lpmemobj
 
 include ../../Makefile.inc
 

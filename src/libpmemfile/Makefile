@@ -34,17 +34,7 @@
 
 include ../common.inc
 
-TARGETS = corelib
-
-CAPSTONE_AVAILABLE := $(call check_package, capstone)
-
-ifeq ($(CAPSTONE_AVAILABLE),y)
-TARGETS += cintercept pmemfile_preload
-else
-$(info NOTE: Skipping pmemfile interposing library because \
-capstone is missing.)
-endif
-
+TARGETS = corelib cintercept pmemfile_preload
 
 CLEAN_TARGETS = $(TARGETS)
 CLOBBER_TARGETS = $(TARGETS)
