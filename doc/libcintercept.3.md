@@ -265,10 +265,10 @@ Before:                         After:
 * Only tested with glibc, altought perhaps it works
 with some other libc implementations as well
 * The following syscalls can not be hooked:
-..* vfork
-..* clone
-..* execve
-..* rt_sigreturn
+  * vfork
+  * clone
+  * execve
+  * rt_sigreturn
 
 # SEE ALSO #
 
