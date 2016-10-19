@@ -55,7 +55,44 @@ static unsigned char asm_wrapper_space[0x100000];
 
 static unsigned char *next_asm_wrapper_space(void);
 
-static void create_wrapper(struct patch_desc *patch, void *dest_routine);
+static void create_wrapper(struct patch_desc *patch, void *dest_routine, 
+			bool use_absolute_return);
+
+/*
+ * create_absolute_jump(from, to)
+ * Create an indirect jump, with the pointer right next to the instruction.
+ *
+ * jmp *0(%rip)
+ *
+ * This uses up 6 bytes for the jump instruction, and another 8 bytes
+ * for the pointer right after the instruction.
+ */
+static void
+create_absolute_jump(unsigned char *from, void *to)
+{
+	from[0] = 0xff; // opcode of RIP based indirect jump
+	from[1] = 0x25; // opcode of RIP based indirect jump
+	from[2] = 0; // 32 bit zero offset
+	from[3] = 0; // this means zero relative to the value
+	from[4] = 0; // of RIP, which during the execution of the jump
+	from[5] = 0; // points to right after the jump instruction
+
+	unsigned char *d = (unsigned char *)&to;
+
+	from[6] = d[0]; // so, this is where (RIP + 0) points to,
+	from[7] = d[1]; // jump reads the destination address
+	from[8] = d[2]; // from here
+	from[9] = d[3];
+	from[10] = d[4];
+	from[11] = d[5];
+	from[12] = d[6];
+	from[13] = d[7];
+
+	// Just written 14 bytes, static_assert that it is correct.
+	// Actually, no static_assert, we do C99
+	if (TRAMPOLINE_SIZE != 14)
+		xabort();
+}
 
 /*
  * create_jump(opcode, from, to)
@@ -86,6 +123,22 @@ create_jump(unsigned char opcode, unsigned char *from, void *to)
 	from[4] = d[3];
 }
 
+static void
+check_trampoline_usage(const struct intercept_desc *desc)
+{
+	if (!desc->uses_trampoline_table)
+		return;
+
+	/*
+	 * We might actually not have enough space for creating
+	 * more trampolines.
+	 */
+
+	size_t used = (size_t)(desc->next_trampoline - desc->trampoline_table);
+
+	if (used + TRAMPOLINE_SIZE >= desc->trampoline_table_size)
+		xabort();
+}
 
 void
 create_patch_wrappers(struct intercept_desc *desc)
@@ -164,7 +217,8 @@ create_patch_wrappers(struct intercept_desc *desc)
 			}
 		}
 
-		create_wrapper(patch, desc->c_detination);
+		create_wrapper(patch, desc->c_detination,
+			desc->uses_trampoline_table);
 	}
 
 }
@@ -241,7 +295,8 @@ create_push_imm(unsigned char *push, uint32_t syscall_offset)
 }
 
 static void
-create_wrapper(struct patch_desc *patch, void *dest_routine)
+create_wrapper(struct patch_desc *patch, void *dest_routine, 
+			bool use_absolute_return)
 {
 	unsigned char *begin;
 
@@ -270,7 +325,11 @@ create_wrapper(struct patch_desc *patch, void *dest_routine)
 	create_push_imm(begin + o_push_origin, (uint32_t)patch->syscall_offset);
 
 	/* Create the jump instrucions returning to the original code */
-	create_jump(JMP_OPCODE, begin + o_ret_jump, patch->return_address);
+	if (use_absolute_return)
+		create_absolute_jump(begin + o_ret_jump, patch->return_address);
+	else
+		create_jump(JMP_OPCODE, begin + o_ret_jump,
+				patch->return_address);
 
 	/* Create the call instrucions calling the intended C function */
 	create_jump(CALL_OPCODE, begin + o_call, dest_routine);
@@ -323,8 +382,22 @@ activate_patches(struct intercept_desc *desc)
 		    patch->dst_jmp_patch > desc->text_end)
 			xabort(); // belt and suspenders
 
-		create_jump(JMP_OPCODE,
-		    patch->dst_jmp_patch, patch->asm_wrapper);
+		if (desc->uses_trampoline_table) {
+			/*
+			 * First jump to the trampoline table, which
+			 * should be in a 2 gigabyte range. From there,
+			 * jump to the asm_wrapper.
+			 */
+			check_trampoline_usage(desc);
+			create_jump(JMP_OPCODE,
+				patch->dst_jmp_patch, desc->next_trampoline);
+			create_absolute_jump(
+				desc->next_trampoline, patch->asm_wrapper);
+			desc->next_trampoline += TRAMPOLINE_SIZE;
+		} else {
+			create_jump(JMP_OPCODE,
+				patch->dst_jmp_patch, patch->asm_wrapper);
+		}
 
 		if (patch->uses_padding) {
 			create_short_jump(patch->syscall_addr,

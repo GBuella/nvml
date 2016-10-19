@@ -38,6 +38,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
 
 #include "intercept.h"
 #include "intercept_util.h"
@@ -54,6 +56,7 @@ static unsigned char *search_padding(unsigned char *syscall_addr,
 					unsigned char *used);
 static void crawl_text(struct intercept_desc *patches);
 static struct patch_desc *add_new_patch(struct intercept_desc *patches);
+static void allocate_trampoline_table(struct intercept_desc *desc);
 
 void
 find_syscalls(struct intercept_desc *desc, Dl_info *dl_info)
@@ -64,6 +67,7 @@ find_syscalls(struct intercept_desc *desc, Dl_info *dl_info)
 	long fd = open_orig_file(desc);
 
 	find_sections(desc, fd);
+	allocate_trampoline_table(desc);
 	allocate_jump_table(desc);
 
 	if (desc->has_symtab)
@@ -462,4 +466,82 @@ search_padding(unsigned char *syscall_addr, unsigned char *used)
 	}
 
 	return padding_pinpoint(dl_base, syscall_addr, symbol, used);
+}
+
+static void
+allocate_trampoline_table(struct intercept_desc *desc)
+{
+	char *e = getenv("INTERCEPT_TRAMPOLINE");
+
+	desc->uses_trampoline_table = (e != NULL) && (e[0] != '0');
+	
+	if (!desc->uses_trampoline_table) {
+		desc->trampoline_table = NULL;
+		desc->trampoline_table_size = 0;
+		desc->trampoline_table = NULL;
+		return;
+	}
+
+	FILE *maps;
+	char line[0x100];
+	unsigned char *guess; // Where we would like to allocate the table
+	size_t size;
+
+	if ((uintptr_t)desc->text_end < (1u << 31)) {
+		guess = 0;
+	} else {
+		guess = desc->text_end - (1u << 31);
+		guess = (unsigned char *)(((uintptr_t)guess)
+				& ~((uintptr_t)(0xfff)));
+	}
+
+	size = 64 * 0x1000; // TODO: don't just guess
+
+	if ((maps = fopen("/proc/self/maps", "r")) == NULL)
+		xabort();
+
+	while ((fgets(line, sizeof(line), maps)) != NULL) {
+		unsigned char *start;
+		unsigned char *end;
+
+		if (sscanf(line, "%p-%p", &start, &end) != 2)
+			xabort();
+
+		/*
+		 * Let's see if an existing mapping overlaps
+		 * with the guess!
+		 */
+		if (end < guess)
+			continue; // No overlap, let's see the next mapping
+
+		if (start >= guess + size) {
+			// The rest of the mappings can't possibly overlap
+			break;
+		}
+
+		/*
+		 * The next guess is the page following the mapping seen
+		 * just now.
+		 */
+		guess = end + 1;
+
+		if (guess + size >= desc->text_start + (1u << 31)) {
+			// Too far away
+			xabort();
+		}
+	}
+
+	fclose(maps);
+
+	desc->trampoline_table = mmap(guess, size,
+					PROT_READ | PROT_WRITE | PROT_EXEC,
+					MAP_FIXED | MAP_PRIVATE | MAP_ANON,
+					-1, 0);
+
+	if (desc->trampoline_table == MAP_FAILED)
+		xabort();
+
+	desc->trampoline_table_size = size;
+
+	desc->next_trampoline = desc->trampoline_table;
 }

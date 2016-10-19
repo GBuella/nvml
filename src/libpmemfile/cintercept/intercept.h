@@ -99,7 +99,18 @@ struct patch_desc {
 
 void patch_apply(struct patch_desc *patch);
 
+// The size of a trampoline jump, jmp instruction + pointer
+#define TRAMPOLINE_SIZE (6 + 8)
+
 struct intercept_desc {
+
+	/*
+	 * uses_trampoline_table - For now this is decided runtime
+	 * to make it easy to compare the operation of the library
+	 * with and without it. If it is ok, we can remove this
+	 * flag, and just always use the trampoline table.
+	 */
+	bool uses_trampoline_table;
 
 	Dl_info dlinfo;
 
@@ -118,6 +129,11 @@ struct intercept_desc {
 	unsigned char *jump_table;
 
 	void *c_detination;
+
+	unsigned char *trampoline_table;
+	size_t trampoline_table_size;
+
+	unsigned char *next_trampoline;
 };
 
 bool has_jump(const struct intercept_desc *desc, unsigned char *addr);
