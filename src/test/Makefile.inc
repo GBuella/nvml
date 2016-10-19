@@ -328,13 +328,6 @@ ifeq ($(USE_PMEMALLOC), y)
 all: $(TOOLS)/pmemalloc/pmemalloc
 endif
 
-$(TOOLS)/mkfs.pmemfile/mkfs.pmemfile:
-	$(MAKE) -C $(TOOLS)/mkfs.pmemfile all
-
-ifeq ($(USE_MKFS_PMEMFILE), y)
-all: $(TOOLS)/mkfs.pmemfile/mkfs.pmemfile
-endif
-
 $(TOOLS)/pmemfile-cat/pmemfile-cat:
 	$(MAKE) -C $(TOOLS)/pmemfile-cat all
 

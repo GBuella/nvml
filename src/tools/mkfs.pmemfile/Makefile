@@ -30,11 +30,11 @@
 #
 # Makefile -- top Makefile for mkfs.pmemfile
 #
-TOP = ../../../..
+TOP = ../../..
 
 TARGET = mkfs.pmemfile
 
-OBJS = mkfs-pmemfile.o
+OBJS = mkfs.pmemfile.o
 
 LIBPMEM=y
 LIBPMEMOBJ=y

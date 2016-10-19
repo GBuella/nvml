@@ -32,25 +32,56 @@
 
 /*
  * mkfs-pmemfile.c -- pmemfile mkfs command source file
+ *
+ * The work is done in the pmemfile_mkfs function, this
+ * tool is basically only a wrapper around it.
  */
+
+#include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <getopt.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "libpmemfile-core.h"
 
+static const char *progname;
+
 static void
 print_version(void)
 {
-	puts("mkfs-pmemfile v0");
+	puts("mkfs-pmemfile v0 - experimental");
 }
 
 static void
-print_usage(FILE *stream, const char *progname)
+print_usage(FILE *stream)
 {
-	fprintf(stream, "Usage: %s [-v] [-h] size path\n", progname);
+	fprintf(stream,
+	    "Usage: %s [-v] [-h] path fs-size\n"
+	    "Options:\n"
+	    "  -v      print version\n"
+	    "  -h      print this help text\n",
+	    progname);
+}
+
+static void
+invalid_size(void)
+{
+	fputs("Invalid size\n", stderr);
+	print_usage(stderr);
+	exit(2);
+}
+
+static unsigned long long
+mul_1024(unsigned long long size)
+{
+	if (size > ULLONG_MAX / 1024)	
+		invalid_size();
+
+	return size * 1024;
 }
 
 static size_t
@@ -59,11 +90,46 @@ parse_size(const char *str)
 	unsigned long long size;
 	char *endptr;
 
-	size = strtoull(str, &endptr, 10);
-	if (*endptr != 0 || errno != 0)
-		return 0;
+	errno = 0;
+	size = strtoull(str, &endptr, 0);
 
-	return size;
+	if (errno != 0)
+		invalid_size();
+
+	switch (tolower((unsigned char)*endptr)) {
+		case 'p': // Well, you never know what the future brings
+			size = mul_1024(size);
+			/* fallthrough */
+		case 't':
+			size = mul_1024(size);
+			/* fallthrough */
+		case 'g':
+			size = mul_1024(size);
+			/* fallthrough */
+		case 'm':
+			size = mul_1024(size);
+			/* fallthrough */
+		case 'k':
+			size = mul_1024(size);
+			if (endptr[1] != '\0')
+				invalid_size();
+			break;
+		case '\0':
+			break;
+		default:
+			invalid_size();
+	}
+
+	/*
+	 * Whish I could use C11 in 2016, but this needs to compile
+	 * on MSVC, so no static_assert for you.
+	 */
+	if (SIZE_MAX != ULLONG_MAX) {
+		if (size > SIZE_MAX)
+			invalid_size();
+	}
+
+	return (size_t)size;
 }
 
 int
@@ -72,6 +138,8 @@ main(int argc, char *argv[])
 	int opt;
 	size_t size;
 	const char *path;
+	
+	progname = argv[0];
 
 	while ((opt = getopt(argc, argv, "vh")) >= 0) {
 		switch (opt) {
@@ -81,28 +149,22 @@ main(int argc, char *argv[])
 			return 0;
 		case 'h':
 		case 'H':
-			print_usage(stdout, argv[0]);
+			print_usage(stdout);
 			return 0;
 		default:
-			print_usage(stderr, argv[0]);
+			print_usage(stderr);
 			return 2;
 		}
 	}
 
 	if (optind + 2 > argc) {
-		print_usage(stderr, argv[0]);
-		return 2;
-	}
-
-	size = parse_size(argv[optind++]);
-
-	if (size == 0) {
-		puts("Invalid size");
-		print_usage(stderr, argv[0]);
+		print_usage(stderr);
 		return 2;
 	}
 
 	path = argv[optind];
+
+	size = parse_size(argv[optind + 1]);
 
 	if (pmemfile_mkfs(path, size, S_IWUSR | S_IRUSR) == NULL) {
 		perror("pmemfile_mkfs ");

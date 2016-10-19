@@ -35,7 +35,6 @@
 #
 TARGET = dummy_prog
 OBJS = dummy_prog.o
-USE_MKFS_PMEMFILE=y
 USE_PMEMFILE_CAT=y
 
 include ../Makefile.inc
