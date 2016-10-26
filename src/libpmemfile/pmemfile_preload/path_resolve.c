@@ -142,7 +142,7 @@ resolve_path(struct pool_description *in_pool, const char *path,
 
 		bool is_last_component = (*end == '\0' || end[1] == '\0');
 
-		if (follow_last == no_resolve_last_slink) {
+		if (is_last_component && follow_last == no_resolve_last_slink) {
 			result->pool = in_pool;
 			return;
 		}

@@ -173,6 +173,10 @@ init_hooking(void)
 	syscall_number_filter[SYS_read] = true;
 	syscall_number_filter[SYS_lseek] = true;
 	syscall_number_filter[SYS_close] = true;
+	syscall_number_filter[SYS_stat] = true;
+	syscall_number_filter[SYS_lstat] = true;
+	syscall_number_filter[SYS_access] = true;
+	syscall_number_filter[SYS_fstat] = true;
 
 	// Install the callback to be calleb by the syscall intercepting library
 	intercept_hook_point = &hook;
@@ -458,7 +462,7 @@ hook_open(long *result, long arg0, long flags, long mode)
 
 	log_write("%s(\"%s\")", __func__, path_arg);
 
-	resolve_path(get_cwd_pool(), path_arg, &where, resolve_last_slink);
+	resolve_path(get_cwd_pool(), path_arg, &where, no_resolve_last_slink);
 
 	if (where.error_code != 0) {
 		*result = where.error_code;
@@ -478,7 +482,7 @@ hook_open(long *result, long arg0, long flags, long mode)
 		PMEMfile *file;
 
 		file = pmemfile_open(where.pool->pool, where.path,
-					(int)flags, (mode_t)mode);
+				((int)flags) & ~O_NONBLOCK, (mode_t)mode);
 
 		log_write("pmemfile_open(\"%s\") = %p",
 		    where.path, (void *)file);
@@ -766,7 +770,7 @@ hook_lstat(long *result, long arg0, long arg1)
 	if (where.pool == NULL)
 		return NOT_HOOKED;
 
-	*result = pmemfile_lstat(where.pool->pool,
+	*result = pmemfile_stat(where.pool->pool,
 			where.path, (struct stat *)arg1);
 
 	log_write("pmemfile_lstat(%p, \"%s\", %p) = %ld",
