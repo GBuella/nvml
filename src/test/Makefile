@@ -58,7 +58,8 @@ FILE_TESTS = \
 	file_core_getdents\
 	file_core_mt\
 	file_core_rw\
-	file_core_stat
+	file_core_stat\
+	libcintercept
 
 LOG_TESTS = \
 	log_basic\
