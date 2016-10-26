@@ -68,17 +68,16 @@ static struct intercept_desc pthreads_patches;
 
 static void log_header(void);
 
-static long
-libc_wrapper(long nr, long arg0, long arg1,
-			long arg2, long arg3,
-			long arg4, long arg5,
-			uint32_t syscall_offset);
+void __attribute__((noreturn)) xlongjmp(long rip, long rsp, long rax);
 
-static long
-pthreads_wrapper(long nr, long arg0, long arg1,
+static void
+intercept_routine(long nr, long arg0, long arg1,
 			long arg2, long arg3,
 			long arg4, long arg5,
-			uint32_t syscall_offset);
+			uint32_t syscall_offset,
+			const char *libpath,
+			long return_to_asm_wrapper,
+			long rsp_in_asm_wrapper);
 
 static __attribute__((constructor)) void
 intercept(void)
@@ -89,8 +88,8 @@ intercept(void)
 	bool pthreads_available;
 
 	find_self_dlinfo();
-	glibc_patches.c_detination = (void *)((uintptr_t)&libc_wrapper);
-	pthreads_patches.c_detination = (void *)((uintptr_t)&pthreads_wrapper);
+	glibc_patches.c_detination = (void *)((uintptr_t)&intercept_routine);
+	pthreads_patches.c_detination = (void *)((uintptr_t)&intercept_routine);
 	intercept_setup_log(getenv("INTERCEPT_LOG"));
 
 	if (find_glibc_dl() != 0) {
@@ -197,15 +196,18 @@ xabort(void)
 }
 
 /*
- * pursuit_special(...)
+ * intercept_routine(...)
  * This is the function called from the asm wrappers,
  * forwarding the syscall parameters to pmemfile.
  */
-static long
-pursuit_special(const char *libpath, long nr, long arg0, long arg1,
+static void
+intercept_routine(long nr, long arg0, long arg1,
 			long arg2, long arg3,
 			long arg4, long arg5,
-			uint32_t syscall_offset)
+			uint32_t syscall_offset,
+			const char *libpath,
+			long return_to_asm_wrapper,
+			long rsp_in_asm_wrapper)
 {
 	long result;
 	int forward_to_kernel = true;
@@ -230,27 +232,7 @@ pursuit_special(const char *libpath, long nr, long arg0, long arg1,
 	    arg0, arg1, arg2, arg3, arg4, arg5,
 	    syscall_offset, result);
 
-	return result;
-}
-
-static long
-libc_wrapper(long nr, long arg0, long arg1,
-			long arg2, long arg3,
-			long arg4, long arg5,
-			uint32_t syscall_offset)
-{
-	return pursuit_special(libc_dlinfo.dli_fname,
-	    nr, arg0, arg1, arg2, arg3, arg4, arg5, syscall_offset);
-}
-
-static long
-pthreads_wrapper(long nr, long arg0, long arg1,
-			long arg2, long arg3,
-			long arg4, long arg5,
-			uint32_t syscall_offset)
-{
-	return pursuit_special(pthreads_dlinfo.dli_fname,
-	    nr, arg0, arg1, arg2, arg3, arg4, arg5, syscall_offset);
+	xlongjmp(return_to_asm_wrapper, rsp_in_asm_wrapper, result);
 }
 
 int

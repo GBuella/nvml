@@ -55,8 +55,9 @@ static unsigned char asm_wrapper_space[0x100000];
 
 static unsigned char *next_asm_wrapper_space(void);
 
-static void create_wrapper(struct patch_desc *patch, void *dest_routine, 
-			bool use_absolute_return);
+static void create_wrapper(struct patch_desc *patch, void *dest_routine,
+			bool use_absolute_return,
+			const char *libpath);
 
 /*
  * create_absolute_jump(from, to)
@@ -218,7 +219,8 @@ create_patch_wrappers(struct intercept_desc *desc)
 		}
 
 		create_wrapper(patch, desc->c_detination,
-			desc->uses_trampoline_table);
+			desc->uses_trampoline_table,
+			desc->dlinfo.dli_fname);
 	}
 
 }
@@ -232,10 +234,15 @@ extern unsigned char intercept_asm_wrapper_simd_save;
 extern unsigned char intercept_asm_wrapper_simd_restore;
 extern unsigned char intercept_asm_wrapper_return_jump;
 extern unsigned char intercept_asm_wrapper_push_origin_addr;
+extern unsigned char intercept_asm_wrapper_mov_return_addr_r11;
+extern unsigned char intercept_asm_wrapper_mov_libpath_r11;
+extern unsigned char intercept_asm_wrapper_mov_magic_r11;
 extern unsigned char intercept_asm_wrapper_simd_save_YMM;
 extern unsigned char intercept_asm_wrapper_simd_save_YMM_end;
 extern unsigned char intercept_asm_wrapper_simd_restore_YMM;
 extern unsigned char intercept_asm_wrapper_simd_restore_YMM_end;
+
+extern void magic_routine();
 
 static size_t tmpl_size;
 static ptrdiff_t o_prefix;
@@ -245,6 +252,9 @@ static ptrdiff_t o_ret_jump;
 static ptrdiff_t o_push_origin;
 static ptrdiff_t o_simd_save;
 static ptrdiff_t o_simd_restore;
+static ptrdiff_t o_mov_return_r11;
+static ptrdiff_t o_mov_libpath_r11;
+static ptrdiff_t o_mov_magic_r11;
 static size_t simd_save_YMM_size;
 static size_t simd_restore_YMM_size;
 
@@ -266,6 +276,9 @@ init_patcher(void)
 	o_push_origin = &intercept_asm_wrapper_push_origin_addr - begin;
 	o_simd_save = &intercept_asm_wrapper_simd_save - begin;
 	o_simd_restore = &intercept_asm_wrapper_simd_restore - begin;
+	o_mov_return_r11 = &intercept_asm_wrapper_mov_return_addr_r11 - begin;
+	o_mov_libpath_r11 = &intercept_asm_wrapper_mov_libpath_r11 - begin;
+	o_mov_magic_r11 = &intercept_asm_wrapper_mov_magic_r11 - begin;
 	simd_save_YMM_size = (size_t)(&intercept_asm_wrapper_simd_save_YMM_end -
 	    &intercept_asm_wrapper_simd_save_YMM);
 	simd_restore_YMM_size =
@@ -295,8 +308,26 @@ create_push_imm(unsigned char *push, uint32_t syscall_offset)
 }
 
 static void
-create_wrapper(struct patch_desc *patch, void *dest_routine, 
-			bool use_absolute_return)
+create_movabs_r11(unsigned char *code, uint64_t value)
+{
+	unsigned char *bytes = (unsigned char *)&value;
+
+	code[0] = 0x49; // movabs opcode
+	code[1] = 0xbb; // specifiy r11 as destination
+	code[2] = bytes[0];
+	code[3] = bytes[1];
+	code[4] = bytes[2];
+	code[5] = bytes[3];
+	code[6] = bytes[4];
+	code[7] = bytes[5];
+	code[8] = bytes[6];
+	code[9] = bytes[7];
+}
+
+static void
+create_wrapper(struct patch_desc *patch, void *dest_routine,
+			bool use_absolute_return,
+			const char *libpath)
 {
 	unsigned char *begin;
 
@@ -324,6 +355,14 @@ create_wrapper(struct patch_desc *patch, void *dest_routine,
 	/* the instruction pushing the syscall's address to the stack */
 	create_push_imm(begin + o_push_origin, (uint32_t)patch->syscall_offset);
 
+	create_movabs_r11(begin + o_mov_return_r11,
+	    (uint64_t)(begin + o_call + 5));
+
+	create_movabs_r11(begin + o_mov_magic_r11,
+	    (uint64_t)&magic_routine + 1);
+
+	create_movabs_r11(begin + o_mov_libpath_r11, (uint64_t)libpath);
+
 	/* Create the jump instrucions returning to the original code */
 	if (use_absolute_return)
 		create_absolute_jump(begin + o_ret_jump, patch->return_address);
@@ -331,8 +370,8 @@ create_wrapper(struct patch_desc *patch, void *dest_routine,
 		create_jump(JMP_OPCODE, begin + o_ret_jump,
 				patch->return_address);
 
-	/* Create the call instrucions calling the intended C function */
-	create_jump(CALL_OPCODE, begin + o_call, dest_routine);
+	/* Create the jump instrucion calling the intended C function */
+	create_jump(JMP_OPCODE, begin + o_call, dest_routine);
 
 	if (must_save_ymm_registers)
 		copy_ymm_handler_code(begin);

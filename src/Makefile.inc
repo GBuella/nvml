@@ -218,7 +218,7 @@ endif
 $(eval $(cstyle-rule))
 
 $(objdir)/%.o: %.s $(MAKEFILE_DEPS)
-	$(AS) -o $@ $<
+	$(AS) -g -o $@ $<
 
 $(objdir)/%.o: %.c $(MAKEFILE_DEPS)
 	@mkdir -p $(objdir)/.deps

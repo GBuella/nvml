@@ -53,10 +53,19 @@
  * "The stack is 16-byte aligned just before the call instruction is called."
  */
 
+.global xlongjmp;
+.type   xlongjmp, @function
+
+.global magic_routine;
+.type   magic_routine, @function
+
 .global intercept_asm_wrapper_tmpl;
 .global intercept_asm_wrapper_simd_save;
 .global intercept_asm_wrapper_prefix;
 .global intercept_asm_wrapper_push_origin_addr;
+.global intercept_asm_wrapper_mov_return_addr_r11;
+.global intercept_asm_wrapper_mov_libpath_r11;
+.global intercept_asm_wrapper_mov_magic_r11;
 .global intercept_asm_wrapper_call;
 .global intercept_asm_wrapper_simd_restore;
 .global intercept_asm_wrapper_postfix;
@@ -67,7 +76,26 @@
 .global intercept_asm_wrapper_simd_restore_YMM;
 .global intercept_asm_wrapper_simd_restore_YMM_end;
 
+
 .text
+
+xlongjmp:
+	.cfi_startproc
+	mov         %rdx, %rax
+	mov         %rsi, %rsp
+	jmp         *%rdi
+	.cfi_endproc
+
+.size   xlongjmp, .-xlongjmp
+
+magic_routine:
+	.cfi_startproc
+	.cfi_def_cfa_offset 0x560
+.fill 2, 1, 0x90
+	.cfi_endproc
+
+.size   magic_routine, .-magic_routine
+
 
 intercept_asm_wrapper_tmpl:
 	nop
@@ -77,7 +105,7 @@ intercept_asm_wrapper_prefix:
 	 * The placeholder nops for whatever instruction
 	 * preceding the syscall instruction in glibc was overwritten
 	 */
-.fill 64, 1, 0x90
+.fill 20, 1, 0x90
 
 	/*
 	 * Jump back to libc on clone vfork, execve, rt_sigreturn.
@@ -92,10 +120,15 @@ intercept_asm_wrapper_prefix:
 	je          L1
 
 	subq        $0x80, %rsp  /* red zone */
-	pushq       %rbp         /* Save all the registers we can. */
-	movq        %rsp, %rbp
+
+	pushq       %rbp
+	movq        %rsp, %rbp /* save the original rsp value */
+	addq        $0x88, %rbp
 	pushf
-	pushq       %r11
+	pushq       %r15
+	pushq       %r14
+	pushq       %r13
+	pushq       %r12
 	pushq       %r10
 	pushq       %r9
 	pushq       %r8
@@ -129,11 +162,31 @@ intercept_asm_wrapper_simd_save:
 	movaps      %xmm5, 0x50 (%rsp)
 	movaps      %xmm6, 0x60 (%rsp)
 	movaps      %xmm7, 0x70 (%rsp)
-.fill 64, 1, 0x90
+.fill 32, 1, 0x90
 
+	pushq       %rbx
+	movq        %rsp, %r11
+
+	movq        %rbp, %rsp
+	subq        $0x530, %rsp
+
+	pushq       %r11
+
+intercept_asm_wrapper_mov_return_addr_r11:
+	/*
+	 * Placeholder for a movabs instruction, putting the return address
+	 * into r11. This should help unwinding the stack.
+	 */
+.fill 10, 1, 0x90
+	pushq       %r11
+
+intercept_asm_wrapper_mov_libpath_r11:
+.fill 10, 1, 0x90
+	pushq       %r11
 
 intercept_asm_wrapper_push_origin_addr:
 .fill 5, 1, 0x90
+
 
 	/*
 	 * Convert the arguments list to one used in
@@ -147,12 +200,17 @@ intercept_asm_wrapper_push_origin_addr:
 	 *   rdi, rsi, rdx, rcx, r8, r9, [rsp + 8]
 	 */
 	pushq       %r9
+
 	movq        %r8, %r9
 	movq        %r10, %r8
 	movq        %rdx, %rcx
 	movq        %rsi, %rdx
 	movq        %rdi, %rsi
 	movq        %rax, %rdi
+
+intercept_asm_wrapper_mov_magic_r11:
+.fill 10, 1, 0x90
+	pushq       %r11  /* push the fake return address */
 
 intercept_asm_wrapper_call:
 	/*
@@ -162,7 +220,9 @@ intercept_asm_wrapper_call:
 	 */
 .fill 5, 1, 0x90
 
-	addq        $0x10, %rsp
+	/* addq        $0x18, %rsp */
+
+	popq        %rbx
 
 intercept_asm_wrapper_simd_restore:
 	movaps      (%rsp), %xmm0
@@ -173,7 +233,7 @@ intercept_asm_wrapper_simd_restore:
 	movaps      0x50 (%rsp), %xmm5
 	movaps      0x60 (%rsp), %xmm6
 	movaps      0x70 (%rsp), %xmm7
-.fill 64, 1, 0x90
+.fill 32, 1, 0x90
 
 
 	movq        %rbx, %rsp
@@ -187,10 +247,13 @@ intercept_asm_wrapper_simd_restore:
 	popq        %r8
 	popq        %r9
 	popq        %r10
-	popq        %r11
+	popq        %r12
+	popq        %r13
+	popq        %r14
+	popq        %r15
 	popf
 	popq        %rbp
-	addq        $0x80, %rsp  /* red zone */
+	addq        $0x80, %rsp  /* return address + mock rbp + red zone */
 
 	jmp         L2
 L1:
@@ -202,10 +265,10 @@ intercept_asm_wrapper_postfix:
 	 * The placeholder nops for whatever instruction
 	 * following the syscall instruction in glibc was overwritten.
 	 */
-.fill 64, 1, 0x90
+.fill 20, 1, 0x90
 
 intercept_asm_wrapper_return_jump:
-.fill 64, 1, 0x90
+.fill 20, 1, 0x90
 
 intercept_asm_wrapper_end:
 
