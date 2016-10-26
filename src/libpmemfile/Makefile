@@ -32,11 +32,13 @@
 # src/libpmemfile/Makefile -- Makefile for libpmemfile project
 #
 
-TARGETS = corelib
+TARGETS = corelib cintercept pmemfile_preload
 CLEAN_TARGETS = $(TARGETS)
 CLOBBER_TARGETS = $(TARGETS)
 CSTYLE_TARGETS = $(TARGETS)
 INSTALL_TARGETS = $(TARGETS)
+
+pmemfile_preload: corelib cintercept
 
 all: $(TARGETS)
 install: $(INSTALL_TARGETS:=-install)
