@@ -89,9 +89,8 @@ file_check_flags(int flags)
 	}
 
 	if (flags & O_DIRECTORY) {
-		LOG(LSUP, "O_DIRECTORY is not supported (yet)");
-		errno = ENOTSUP;
-		return -1;
+		LOG(LSUP, "O_DIRECTORY");
+		flags &= ~O_DIRECTORY;
 	}
 
 	if (flags & O_DSYNC) {
@@ -281,14 +280,13 @@ pmemfile_open(PMEMfilepool *pfp, const char *pathname, int flags, ...)
 				pmemobj_tx_abort(EEXIST);
 			}
 
-			if (file_is_dir(vinode)) {
-				LOG(LSUP, "opening directories is not supported"
-						" (yet)");
-				pmemobj_tx_abort(EISDIR);
-			}
-
-			if (flags & O_TRUNC)
+			if (flags & O_TRUNC) {
+				if (flags & O_DIRECTORY) {
+					LOG(LUSR, "truncate directory? no way");
+					pmemobj_tx_abort(EINVAL);
+				}
 				file_truncate(vinode);
+			}
 		}
 
 		if (vinode == NULL) {
@@ -297,7 +295,12 @@ pmemfile_open(PMEMfilepool *pfp, const char *pathname, int flags, ...)
 
 			rwlock_tx_wlock(&parent_vinode->rwlock);
 
-			vinode = file_inode_alloc(pfp, S_IFREG | mode, &t);
+			uint64_t type = 0;
+			if (flags & O_DIRECTORY)
+				type = S_IFDIR;
+			else
+				type = S_IFREG;
+			vinode = file_inode_alloc(pfp, type | mode, &t);
 			file_add_dentry(pfp, parent_vinode, pathname,
 					vinode, &t);
 
