@@ -462,6 +462,10 @@ hook_open(long *result, long arg0, long flags, long mode)
 
 	log_write("%s(\"%s\")", __func__, path_arg);
 
+	/*
+	 * TODO: Instead of no_resolve_last_slink, check for
+	 * the O_NOFOLLOW flag. Even some basic utility progs use it.
+	 */
 	resolve_path(get_cwd_pool(), path_arg, &where, no_resolve_last_slink);
 
 	if (where.error_code != 0) {

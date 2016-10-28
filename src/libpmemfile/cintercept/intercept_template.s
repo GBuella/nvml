@@ -108,7 +108,7 @@ intercept_asm_wrapper_prefix:
 .fill 20, 1, 0x90
 
 	/*
-	 * Jump back to libc on clone vfork, execve, rt_sigreturn.
+	 * Jump back to libc on clone, vfork, execve, rt_sigreturn.
 	 */ 
 	cmp         $0x38, %rax
 	je          L1
