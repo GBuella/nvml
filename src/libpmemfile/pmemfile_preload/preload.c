@@ -64,6 +64,8 @@
 
 #include "preload.h"
 
+#define SYS_CREAT_OFLAGS (O_WRONLY | O_CREAT | O_TRUNC)
+
 static int hook(long syscall_number,
 			long arg0, long arg1,
 			long arg2, long arg3,
@@ -177,6 +179,8 @@ init_hooking(void)
 	syscall_number_filter[SYS_lstat] = true;
 	syscall_number_filter[SYS_access] = true;
 	syscall_number_filter[SYS_fstat] = true;
+	syscall_number_filter[SYS_getdents] = true;
+	syscall_number_filter[SYS_getdents64] = true;
 
 	// Install the callback to be calleb by the syscall intercepting library
 	intercept_hook_point = &hook;
@@ -346,6 +350,10 @@ static long hook_pread64(struct fd_association *file,
 			char *buf, size_t count, off_t pos);
 static long hook_pwrite64(struct fd_association *file,
 			const char *buf, size_t count, off_t pos);
+static long hook_getdents(struct fd_association *file,
+				struct linux_dirent *dirp, unsigned count);
+static long hook_getdents64(struct fd_association *file,
+				struct linux_dirent64 *dirp, unsigned count);
 
 static long hook_chdir(const char *path);
 
@@ -355,6 +363,9 @@ static long hook_chdir(const char *path);
  * This routine expects a few things:
  *
  * The syscall is already known to be one listed here.
+ * The fd is already resolved to a PMEMfile pointer.
+ * Race conditions are taken care of by the caller --
+ *  the fd_mutex is locked while calling hook_fd_syscalls
  */
 static long
 hook_fd_syscalls(long syscall_number, struct fd_association *file,
@@ -377,6 +388,12 @@ hook_fd_syscalls(long syscall_number, struct fd_association *file,
 	else if (syscall_number == SYS_pwrite64)
 		return hook_pwrite64(file, (const char *)arg1,
 					(size_t)arg2, (off_t)arg3);
+	else if (syscall_number == SYS_getdents)
+		return hook_getdents(file,
+		    (struct linux_dirent*)arg1, (unsigned)arg2);
+	else if (syscall_number == SYS_getdents64)
+		return hook_getdents64(file,
+		    (struct linux_dirent64*)arg1, (unsigned)arg2);
 	else if (syscall_number == SYS_fsync)
 		return 0;
 	else
@@ -412,7 +429,7 @@ hook(long syscall_number,
 	if (syscall_number == SYS_open)
 		return hook_open(result, arg0, arg1, arg2);
 	if (syscall_number == SYS_creat)
-		return hook_open(result, arg0, O_WRONLY|O_CREAT|O_TRUNC, arg2);
+		return hook_open(result, arg0, SYS_CREAT_OFLAGS, arg2);
 	if (syscall_number == SYS_link)
 		return hook_link(result, arg0, arg1);
 	if (syscall_number == SYS_unlink)
@@ -459,14 +476,18 @@ hook_open(long *result, long arg0, long flags, long mode)
 {
 	struct path_component where;
 	const char *path_arg = (const char *)arg0;
+	enum resolve_last_or_not follow_last;
 
 	log_write("%s(\"%s\")", __func__, path_arg);
 
-	/*
-	 * TODO: Instead of no_resolve_last_slink, check for
-	 * the O_NOFOLLOW flag. Even some basic utility progs use it.
-	 */
-	resolve_path(get_cwd_pool(), path_arg, &where, no_resolve_last_slink);
+	if ((flags & O_NOFOLLOW) != 0)
+		follow_last = no_resolve_last_slink;
+	else if ((flags & O_CREAT) != 0)
+		follow_last = no_resolve_last_slink;
+	else
+		follow_last = resolve_last_slink;
+
+	resolve_path(get_cwd_pool(), path_arg, &where, follow_last);
 
 	if (where.error_code != 0) {
 		*result = where.error_code;
@@ -855,4 +876,36 @@ hook_access(long *result, long arg0, long arg1)
 		*result = -errno;
 
 	return HOOKED;
+}
+
+static long
+hook_getdents(struct fd_association *file,
+		struct linux_dirent *dirp, unsigned count)
+{
+	long result = pmemfile_getdents(file->pool, file->file, dirp, count);
+
+	if (result < 0)
+		result = -errno;
+
+	log_write("pmemfile_getdents(%p, %p, %p, %u) = %ld",
+	    (void *)file->pool, (void *)file->file,
+	    (const void *)dirp, count, result);
+
+	return result;
+}
+
+static long
+hook_getdents64(struct fd_association *file,
+		struct linux_dirent64 *dirp, unsigned count)
+{
+	long result = pmemfile_getdents64(file->pool, file->file, dirp, count);
+
+	if (result < 0)
+		result = -errno;
+
+	log_write("pmemfile_getdents64(%p, %p, %p, %u) = %ld",
+	    (void *)file->pool, (void *)file->file,
+	    (const void *)dirp, count, result);
+
+	return result;
 }
