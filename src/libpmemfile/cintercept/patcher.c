@@ -141,6 +141,21 @@ check_trampoline_usage(const struct intercept_desc *desc)
 		xabort();
 }
 
+/*
+ * create_patch_wrappers - create the custom assembly wrappers
+ * around each syscall to be intercepted. Well, actually, the
+ * function create_wrapper does that, so perhaps this function
+ * deserves a better name.
+ * What this function actually does, is figure out how to create
+ * a jump instruction in libc ( which bytes to overwrite ).
+ * If it successfully finds suitable bytes for hotpatching,
+ * then it determines the exact bytes to overwrite, and the exact
+ * address for jumping back to libc.
+ *
+ * This is all based on the information collected by the routine
+ * find_syscalls, which does the disassembling, finding jump destinations,
+ * finding padding bytes, etc..
+ */
 void
 create_patch_wrappers(struct intercept_desc *desc)
 {
@@ -148,15 +163,38 @@ create_patch_wrappers(struct intercept_desc *desc)
 		struct patch_desc *patch = desc->items + patch_i;
 
 		if (patch->padding_addr != NULL) {
+			/*
+			 * The preferred option it to use a 5 byte relative
+			 * jump in a padding space between symbols in libc.
+			 * If such padding space is found, a 2 byte short
+			 * jump is enough for jumping to it, thus no
+			 * instructions other than the syscall
+			 * itself need to be overwritten.
+			 */
 			patch->uses_padding = true;
 			patch->uses_prev_ins = false;
 			patch->uses_next_ins = false;
 			patch->dst_jmp_patch = patch->padding_addr;
+
+			/*
+			 * Return to libc:
+			 * just jump to instruction right after the place
+			 * where the syscall instruction was originally.
+			 */
 			patch->return_address =
 			    patch->syscall_addr + SYSCALL_INS_SIZE;
 			patch->ok = true;
 		} else {
 			patch->uses_padding = false;
+
+			/*
+			 * No padding space is available, so check the
+			 * instructions surrounding the syscall instrucion.
+			 * If they can be relocated, then they can be
+			 * overwritten. Of course some instrucions depend
+			 * on the value of the RIP register, these can not
+			 * be relocated.
+			 */
 
 			patch->uses_prev_ins =
 			    !(patch->preceding_ins.has_ip_relative_opr ||
@@ -177,10 +215,23 @@ create_patch_wrappers(struct intercept_desc *desc)
 			    has_jump(desc,
 				patch->syscall_addr + SYSCALL_INS_SIZE));
 
+			/*
+			 * Count the number of overwritable bytes
+			 * in the variable length.
+			 * Sum up the bytes that can be overwritten.
+			 * The 2 bytes of the syscall instruction can
+			 * be overwritten definitely, so length starts
+			 * as SYSCALL_INS_SIZE ( 2 bytes ).
+			 */
 			unsigned length = SYSCALL_INS_SIZE;
 
 			patch->dst_jmp_patch = patch->syscall_addr;
 
+			/*
+			 * If the preceding instruction is relocatable,
+			 * add its length. Also, the the instruction right
+			 * before that.
+			 */
 			if (patch->uses_prev_ins) {
 				length += patch->preceding_ins.length;
 				patch->dst_jmp_patch -=
@@ -193,18 +244,53 @@ create_patch_wrappers(struct intercept_desc *desc)
 				}
 			}
 
+			/*
+			 * If the followin instrucion is relocatable,
+			 * add its length. This also affects the return address.
+			 * Normally, the library would return to libc after
+			 * handling the syscall by jumping to instruction
+			 * right after the syscall. But if that instruction
+			 * is overwritten, the returning jump must jump to
+			 * the instruction after it.
+			 */
 			if (patch->uses_next_ins) {
 				length += patch->following_ins.length;
+
+				/*
+				 * Address of the syscall instrucion
+				 * plus 2 bytes
+				 * plus the length of the following instruction
+				 *
+				 * adds up to:
+				 *
+				 * the address of the second instruction after
+				 * the syscall.
+				 */
 				patch->return_address = patch->syscall_addr +
 				    SYSCALL_INS_SIZE +
 				    patch->following_ins.length;
 			} else {
+				/*
+				 * Address of the syscall instrucion
+				 * plus 2 bytes
+				 *
+				 * adds up to:
+				 *
+				 * the address of the first instruction after
+				 * the syscall ( just like in the case of
+				 * using padding bytes ).
+				 */
 				patch->return_address =
 					patch->syscall_addr + SYSCALL_INS_SIZE;
 			}
 
+			/*
+			 * If the length is at least 5, then a jump instrucion
+			 * with a 32 bit displacement can fit.
+			 */
 			patch->ok = length >= JUMP_INS_SIZE;
 
+			/* Otherwise give up */
 			if (length < JUMP_INS_SIZE) {
 				char buffer[0x1000];
 
@@ -214,7 +300,7 @@ create_patch_wrappers(struct intercept_desc *desc)
 					patch->syscall_offset);
 
 				intercept_log(buffer, (size_t)l);
-				continue;
+				xabort();
 			}
 		}
 
