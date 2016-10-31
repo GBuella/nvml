@@ -53,21 +53,25 @@ export PMEMFILE_PRELOAD_LOG=pmemfile_preload.log
 export INTERCEPT_LOG=intercept.log
 export INTERCEPT_LOG_NO_PID=1
 
-expect_normal_exit cp TEST1 $DIR/dummy_mount_point/file_a
-expect_normal_exit cp TEST0 $DIR/dummy_mount_point/file_b
+expect_normal_exit cp dummy_file_a $DIR/dummy_mount_point/file_a
+expect_normal_exit cp dummy_file_b $DIR/dummy_mount_point/file_b
 expect_normal_exit cp $DIR/dummy_mount_point/file_a file_a.log
 expect_normal_exit cp $DIR/dummy_mount_point/file_b file_b.log
 
-cmp file_a.log TEST1
-cmp file_b.log TEST0
+cmp file_a.log dummy_file_a
+cmp file_b.log dummy_file_b
 
 expect_normal_exit cat $DIR/dummy_mount_point/file_a > file_a_cat.log
 
-cmp file_a_cat.log TEST1
+cmp file_a_cat.log dummy_file_a
 
 expect_normal_exit ls $DIR/dummy_mount_point > pmemfile_ls_root.log
 
 cmp pmemfile_ls_root.log ls_root_expected_log
+
+expect_normal_exit ls -l $DIR/dummy_mount_point > file_preload1.log
+
+check
 
 # todo: when rm works...
 # expect_normal_exit rm $DIR/dummy_mount_point/file_a

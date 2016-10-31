@@ -181,6 +181,12 @@ init_hooking(void)
 	syscall_number_filter[SYS_fstat] = true;
 	syscall_number_filter[SYS_getdents] = true;
 	syscall_number_filter[SYS_getdents64] = true;
+	syscall_number_filter[SYS_getxattr] = true;
+	syscall_number_filter[SYS_fgetxattr] = true;
+	syscall_number_filter[SYS_lgetxattr] = true;
+	syscall_number_filter[SYS_setxattr] = true;
+	syscall_number_filter[SYS_fsetxattr] = true;
+	syscall_number_filter[SYS_lsetxattr] = true;
 
 	// Install the callback to be calleb by the syscall intercepting library
 	intercept_hook_point = &hook;
@@ -341,6 +347,10 @@ static int hook_stat(long *result, long arg0, long arg1);
 static int hook_lstat(long *result, long arg0, long arg1);
 static int hook_close(long *result, long fd);
 static int hook_access(long *result, long arg0, long arg1);
+static int hook_getxattr(long *result, long arg0);
+static int hook_lgetxattr(long *result, long arg0);
+static int hook_setxattr(long *result, long arg0, long arg3);
+static int hook_lsetxattr(long *result, long arg0, long arg3);
 
 static long hook_write(struct fd_association *file, char *buffer, size_t count);
 static long hook_read(struct fd_association *file, char *buffer, size_t count);
@@ -394,6 +404,12 @@ hook_fd_syscalls(long syscall_number, struct fd_association *file,
 	else if (syscall_number == SYS_getdents64)
 		return hook_getdents64(file,
 		    (struct linux_dirent64*)arg1, (unsigned)arg2);
+	else if (syscall_number == SYS_fgetxattr)
+		return 0;
+	else if (syscall_number == SYS_fsetxattr && arg3 == 0)
+		return 0;
+	else if (syscall_number == SYS_fsetxattr && arg3 != 0)
+		return -ENOTSUP;
 	else if (syscall_number == SYS_fsync)
 		return 0;
 	else
@@ -440,6 +456,14 @@ hook(long syscall_number,
 		return hook_lstat(result, arg0, arg1);
 	if (syscall_number == SYS_access)
 		return hook_access(result, arg0, arg1);
+	if (syscall_number == SYS_getxattr)
+		return hook_getxattr(result, arg0);
+	if (syscall_number == SYS_lgetxattr)
+		return hook_lgetxattr(result, arg0);
+	if (syscall_number == SYS_setxattr)
+		return hook_setxattr(result, arg0, arg3);
+	if (syscall_number == SYS_lsetxattr)
+		return hook_lsetxattr(result, arg0, arg3);
 
 	if (syscall_number == SYS_close)
 		return hook_close(result, arg0);
@@ -908,4 +932,78 @@ hook_getdents64(struct fd_association *file,
 	    (const void *)dirp, count, result);
 
 	return result;
+}
+
+static int
+hook_getxattr(long *result, long arg0)
+{
+	struct path_component where;
+
+	resolve_path(get_cwd_pool(), (const char *)arg0,
+	    &where, resolve_last_slink);
+
+	if (where.pool == NULL)
+		return NOT_HOOKED;
+
+	*result = 0;
+
+	return HOOKED;
+}
+
+static int
+hook_lgetxattr(long *result, long arg0)
+{
+	struct path_component where;
+
+	resolve_path(get_cwd_pool(), (const char *)arg0,
+	    &where, no_resolve_last_slink);
+
+	if (where.pool == NULL)
+		return NOT_HOOKED;
+
+	*result = 0;
+
+	return HOOKED;
+}
+
+/*
+ * Syscall setxattr is not supported, unless the size argument ( arg3 )
+ * is zero. Pretend to support setting an empty string as xattr.
+ */
+static int
+hook_setxattr(long *result, long arg0, long arg3)
+{
+	struct path_component where;
+
+	resolve_path(get_cwd_pool(), (const char *)arg0,
+	    &where, resolve_last_slink);
+
+	if (where.pool == NULL)
+		return NOT_HOOKED;
+
+	if (arg3 != 0)
+		*result = -ENOTSUP;
+	else
+		*result = 0;
+
+	return HOOKED;
+}
+
+static int
+hook_lsetxattr(long *result, long arg0, long arg3)
+{
+	struct path_component where;
+
+	resolve_path(get_cwd_pool(), (const char *)arg0,
+	    &where, no_resolve_last_slink);
+
+	if (where.pool == NULL)
+		return NOT_HOOKED;
+
+	if (arg3 != 0)
+		*result = -ENOTSUP;
+	else
+		*result = 0;
+
+	return HOOKED;
 }
