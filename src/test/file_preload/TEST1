@@ -37,7 +37,7 @@ export UNITTEST_NUM=1
 # standard unit test setup
 . ../unittest/unittest.sh
 
-require_test_type short
+require_test_type medium
 require_build_type debug nondebug
 
 setup
@@ -69,7 +69,8 @@ expect_normal_exit ls $DIR/dummy_mount_point > pmemfile_ls_root.log
 
 cmp pmemfile_ls_root.log ls_root_expected_log
 
-expect_normal_exit ls -l $DIR/dummy_mount_point > file_preload1.log
+expect_normal_exit ls -o --time-style=+"" $DIR/dummy_mount_point | sed 's/\s\+/ /g' > file_preload_lsl1.log
+expect_normal_exit ls -ao --time-style=+"" $DIR/dummy_mount_point | sed -e 's/\s\+/ /g' -e '/\.\./d' > file_preload_lsla1.log
 
 check
 
