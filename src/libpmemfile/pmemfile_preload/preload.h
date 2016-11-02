@@ -79,6 +79,7 @@ struct path_component {
 enum resolve_last_or_not { resolve_last_slink, no_resolve_last_slink };
 
 struct pool_description *lookup_pd_by_inode(__ino_t inode);
+struct pool_description *lookup_pd_by_path(const char *path);
 
 void resolve_path(struct pool_description *in_pool, const char *path,
 			struct path_component *result,

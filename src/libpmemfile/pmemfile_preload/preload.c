@@ -400,10 +400,10 @@ hook_fd_syscalls(long syscall_number, struct fd_association *file,
 					(size_t)arg2, (off_t)arg3);
 	else if (syscall_number == SYS_getdents)
 		return hook_getdents(file,
-		    (struct linux_dirent*)arg1, (unsigned)arg2);
+		    (struct linux_dirent *)arg1, (unsigned)arg2);
 	else if (syscall_number == SYS_getdents64)
 		return hook_getdents64(file,
-		    (struct linux_dirent64*)arg1, (unsigned)arg2);
+		    (struct linux_dirent64 *)arg1, (unsigned)arg2);
 	else if (syscall_number == SYS_fgetxattr)
 		return 0;
 	else if (syscall_number == SYS_fsetxattr && arg3 == 0)
@@ -770,6 +770,29 @@ lookup_pd_by_inode(__ino_t inode)
 	for (int i = 0; i < pool_count; ++i) {
 		struct pool_description *p = pools + i;
 		if (p->stat.st_ino == inode)  {
+			PMEMfilepool *pfp;
+
+			pfp = __atomic_load_n(&p->pool, __ATOMIC_SEQ_CST);
+			if (pfp == NULL) {
+				pthread_mutex_lock(&fd_mutex);
+				open_new_pool(p);
+				pthread_mutex_unlock(&fd_mutex);
+			}
+			return p;
+		}
+	}
+
+	return NULL;
+}
+
+struct pool_description *
+lookup_pd_by_path(const char *path)
+{
+	for (int i = 0; i < pool_count; ++i) {
+		struct pool_description *p = pools + i;
+		// TODO: first compare the lengths of the two strings to
+		// avoid strcmp calls
+		if (strcmp(p->mount_point, path) == 0)  {
 			PMEMfilepool *pfp;
 
 			pfp = __atomic_load_n(&p->pool, __ATOMIC_SEQ_CST);

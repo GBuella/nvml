@@ -143,6 +143,14 @@ resolve_path(struct pool_description *in_pool, const char *path,
 		bool is_last_component = (*end == '\0' || end[1] == '\0');
 
 		if (is_last_component && follow_last == no_resolve_last_slink) {
+			if (in_pool == NULL) {
+				in_pool = lookup_pd_by_path(result->path);
+				if (in_pool != NULL) {
+					result->path[0] = '/';
+					result->path[1] = '\0';
+					result->path_len = 1;
+				}
+			}
 			result->pool = in_pool;
 			return;
 		}
@@ -153,7 +161,8 @@ resolve_path(struct pool_description *in_pool, const char *path,
 		if (in_pool != NULL) {
 			errno = 0;
 			// todo:
-			// pmemfile_lstat(in_pool->pool, result->path, &stat_buf);
+			// pmemfile_lstat(in_pool->pool,
+			// result->path, &stat_buf);
 			stat_buf.st_mode = 0;
 			error_code = -errno;
 		} else {
@@ -338,8 +347,10 @@ path_initial_copy(struct path_component *dst, const char *src)
 		/* Collapse slash clusters + skip self references in path */
 		if (p[0] == '/' && (p[1] == '/' || p[1] == '\0')) {
 			++p;
-		} else if (p[0] == '.' && (p[1] == '/' || p[1] == '\0')) {
+		} else if (p[0] == '.' && p[1] == '/') {
 			p += 2;
+		} else if (p[0] == '.' && p[1] == '\0') {
+			break;
 		} else if (p[0] == '/') {
 			dst->path[dst->path_len++] = '/';
 			++p;
@@ -353,6 +364,10 @@ path_initial_copy(struct path_component *dst, const char *src)
 				}
 			} while (*p != '/' && *p != '\0');
 		}
+	}
+	if (dst->path_len > 0) {
+		if (dst->path[dst->path_len - 1] == '/')
+			--dst->path_len;
 	}
 
 	dst->path[dst->path_len] = '\0';
@@ -387,7 +402,7 @@ resolve_root_parent(struct path_component *result,
 			return 0;
 		}
 		memmove(result->path + mnt_len,
-			result->path + 3, result->path_len - 3 + 1);
+		    result->path + 3, result->path_len - 3 + 1);
 		memmove(result->path, (*in_pool)->mount_point_parent, mnt_len);
 		result->path_len = new_len;
 		*in_pool = NULL;
