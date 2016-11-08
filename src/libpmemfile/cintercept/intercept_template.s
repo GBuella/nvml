@@ -92,7 +92,7 @@ xlongjmp:
 
 magic_routine:
 	.cfi_startproc
-	.cfi_def_cfa_offset 0x570
+	.cfi_def_cfa_offset 0x580
 .fill 2, 1, 0x90
 	.cfi_endproc
 
