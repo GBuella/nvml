@@ -245,7 +245,8 @@ find_jumps_in_section_syms(struct intercept_desc *desc, Elf64_Shdr *section,
 			continue; // it is not in the text section
 
 		// a function entry point in .text, mark it as jump destination
-		mark_jump(desc, syms[i].st_value + desc->text_start);
+		mark_jump(desc, syms[i].st_value +
+		    (unsigned char *)desc->dlinfo.dli_fbase);
 	}
 }
 
