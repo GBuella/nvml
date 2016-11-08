@@ -49,6 +49,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <sched.h>
 
 static long log_fd = -1;
 
@@ -210,6 +211,70 @@ print_open_flags(char *buffer, long flags)
 	}
 
 	return c;
+}
+
+static void
+print_clone_flags(char buffer[static 0x100], long flags)
+{
+	char *c = buffer;
+
+	*c = '\0';
+
+	if ((flags & CLONE_CHILD_CLEARTID) == CLONE_CHILD_CLEARTID)
+		c += sprintf(c, "CLONE_CHILD_CLEARTID |");
+	if ((flags & CLONE_CHILD_SETTID) == CLONE_CHILD_SETTID)
+		c += sprintf(c, "CLONE_CHILD_SETTID |");
+	if ((flags & CLONE_FILES) == CLONE_FILES)
+		c += sprintf(c, "CLONE_FILES |");
+	if ((flags & CLONE_FS) == CLONE_FS)
+		c += sprintf(c, "CLONE_FS |");
+	if ((flags & CLONE_IO) == CLONE_IO)
+		c += sprintf(c, "CLONE_IO |");
+	if ((flags & CLONE_NEWCGROUP) == CLONE_NEWCGROUP)
+		c += sprintf(c, "CLONE_NEWCGROUP |");
+	if ((flags & CLONE_NEWIPC) == CLONE_NEWIPC)
+		c += sprintf(c, "CLONE_NEWIPC |");
+	if ((flags & CLONE_NEWNET) == CLONE_NEWNET)
+		c += sprintf(c, "CLONE_NEWNET |");
+	if ((flags & CLONE_NEWNS) == CLONE_NEWNS)
+		c += sprintf(c, "CLONE_NEWNS |");
+	if ((flags & CLONE_NEWPID) == CLONE_NEWPID)
+		c += sprintf(c, "CLONE_NEWPID |");
+	if ((flags & CLONE_NEWUSER) == CLONE_NEWUSER)
+		c += sprintf(c, "CLONE_NEWUSER |");
+	if ((flags & CLONE_NEWUTS) == CLONE_NEWUTS)
+		c += sprintf(c, "CLONE_NEWUTS |");
+	if ((flags & CLONE_PARENT) == CLONE_PARENT)
+		c += sprintf(c, "CLONE_PARENT |");
+	if ((flags & CLONE_PARENT_SETTID) == CLONE_PARENT_SETTID)
+		c += sprintf(c, "CLONE_PARENT_SETTID |");
+	if ((flags & CLONE_PTRACE) == CLONE_PTRACE)
+		c += sprintf(c, "CLONE_PTRACE |");
+	if ((flags & CLONE_PTRACE) == CLONE_PTRACE)
+		c += sprintf(c, "CLONE_PTRACE |");
+	if ((flags & CLONE_SETTLS) == CLONE_SETTLS)
+		c += sprintf(c, "CLONE_SETTLS |");
+	if ((flags & CLONE_SIGHAND) == CLONE_SIGHAND)
+		c += sprintf(c, "CLONE_SIGHAND |");
+	if ((flags & CLONE_SYSVSEM) == CLONE_SYSVSEM)
+		c += sprintf(c, "CLONE_SYSVSEM |");
+	if ((flags & CLONE_THREAD) == CLONE_THREAD)
+		c += sprintf(c, "CLONE_THREAD |");
+	if ((flags & CLONE_UNTRACED) == CLONE_UNTRACED)
+		c += sprintf(c, "CLONE_UNTRACED |");
+	if ((flags & CLONE_UNTRACED) == CLONE_UNTRACED)
+		c += sprintf(c, "CLONE_UNTRACED |");
+	if ((flags & CLONE_VFORK) == CLONE_VFORK)
+		c += sprintf(c, "CLONE_VFORK |");
+	if ((flags & CLONE_VM) == CLONE_VM)
+		c += sprintf(c, "CLONE_VM |");
+
+	if (c != buffer) {
+		c -= 3;
+		*c = '\0';
+	} else {
+		sprintf(buffer, "%ld", flags);
+	}
 }
 
 /*
@@ -725,6 +790,16 @@ intercept_log_syscall(const char *libpath, long nr, long arg0, long arg1,
 		buf += sprintf(buf, "exit_group(%d)", (int)arg0);
 	} else if (nr == SYS_exit) {
 		buf += sprintf(buf, "exit(%d)", (int)arg0);
+	} else if (nr == SYS_clone) {
+		char sflags[0x100];
+
+		print_clone_flags(sflags, arg2);
+		buf += sprintf(buf, "clone(%p, %p, %s, %p)",
+		    (void *)arg0, (void *)arg1, sflags, (void *)arg3);
+	} else if (nr == SYS_fork) {
+		buf += sprintf(buf, "fork()");
+	} else if (nr == SYS_vfork) {
+		buf += sprintf(buf, "vfork()");
 	} else {
 		buf = print_syscall(buf, "syscall", 7,
 				f_dec, nr,
@@ -859,7 +934,7 @@ print_syscall(char *b, const char *name, unsigned args, ...)
 		} else if (format == f_oct_mode) {
 			b += sprintf(b, "0%lo", va_arg(ap, unsigned long));
 		} else if (format == f_hex) {
-			b += sprintf(b, "0x%ld", va_arg(ap, unsigned long));
+			b += sprintf(b, "0x%lx", va_arg(ap, unsigned long));
 		} else if (format == f_str) {
 			b = xprint_escape(b, va_arg(ap, char *), 0x80, true, 0);
 		} else if (format == f_buf) {
