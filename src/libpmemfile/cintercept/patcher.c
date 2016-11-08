@@ -173,6 +173,7 @@ create_patch_wrappers(struct intercept_desc *desc)
 			 */
 			patch->uses_padding = true;
 			patch->uses_prev_ins = false;
+			patch->uses_prev_ins_2 = false;
 			patch->uses_next_ins = false;
 			patch->dst_jmp_patch = patch->padding_addr;
 
@@ -184,6 +185,7 @@ create_patch_wrappers(struct intercept_desc *desc)
 			patch->return_address =
 			    patch->syscall_addr + SYSCALL_INS_SIZE;
 			patch->ok = true;
+
 		} else {
 			patch->uses_padding = false;
 
@@ -320,13 +322,16 @@ extern unsigned char intercept_asm_wrapper_simd_save;
 extern unsigned char intercept_asm_wrapper_simd_restore;
 extern unsigned char intercept_asm_wrapper_return_jump;
 extern unsigned char intercept_asm_wrapper_push_origin_addr;
-extern unsigned char intercept_asm_wrapper_mov_return_addr_r11;
+extern unsigned char intercept_asm_wrapper_mov_return_addr_r11_no_syscall;
+extern unsigned char intercept_asm_wrapper_mov_return_addr_r11_syscall;
 extern unsigned char intercept_asm_wrapper_mov_libpath_r11;
 extern unsigned char intercept_asm_wrapper_mov_magic_r11;
 extern unsigned char intercept_asm_wrapper_simd_save_YMM;
 extern unsigned char intercept_asm_wrapper_simd_save_YMM_end;
 extern unsigned char intercept_asm_wrapper_simd_restore_YMM;
 extern unsigned char intercept_asm_wrapper_simd_restore_YMM_end;
+extern unsigned char intercept_asm_wrapper_return_and_no_syscall;
+extern unsigned char intercept_asm_wrapper_return_and_syscall;
 
 extern void magic_routine();
 
@@ -334,11 +339,14 @@ static size_t tmpl_size;
 static ptrdiff_t o_prefix;
 static ptrdiff_t o_postfix;
 static ptrdiff_t o_call;
+static ptrdiff_t o_ret_no_syscall;
+static ptrdiff_t o_ret_syscall;
 static ptrdiff_t o_ret_jump;
 static ptrdiff_t o_push_origin;
 static ptrdiff_t o_simd_save;
 static ptrdiff_t o_simd_restore;
-static ptrdiff_t o_mov_return_r11;
+static ptrdiff_t o_mov_return_r11_no_syscall;
+static ptrdiff_t o_mov_return_r11_syscall;
 static ptrdiff_t o_mov_libpath_r11;
 static ptrdiff_t o_mov_magic_r11;
 static size_t simd_save_YMM_size;
@@ -358,11 +366,16 @@ init_patcher(void)
 	o_prefix = &intercept_asm_wrapper_prefix - begin;
 	o_postfix = &intercept_asm_wrapper_postfix - begin;
 	o_call = &intercept_asm_wrapper_call - begin;
+	o_ret_no_syscall = &intercept_asm_wrapper_return_and_no_syscall - begin;
+	o_ret_syscall = &intercept_asm_wrapper_return_and_syscall - begin;
 	o_ret_jump = &intercept_asm_wrapper_return_jump - begin;
 	o_push_origin = &intercept_asm_wrapper_push_origin_addr - begin;
 	o_simd_save = &intercept_asm_wrapper_simd_save - begin;
 	o_simd_restore = &intercept_asm_wrapper_simd_restore - begin;
-	o_mov_return_r11 = &intercept_asm_wrapper_mov_return_addr_r11 - begin;
+	o_mov_return_r11_no_syscall =
+	    &intercept_asm_wrapper_mov_return_addr_r11_no_syscall - begin;
+	o_mov_return_r11_syscall =
+	    &intercept_asm_wrapper_mov_return_addr_r11_syscall - begin;
 	o_mov_libpath_r11 = &intercept_asm_wrapper_mov_libpath_r11 - begin;
 	o_mov_magic_r11 = &intercept_asm_wrapper_mov_magic_r11 - begin;
 	simd_save_YMM_size = (size_t)(&intercept_asm_wrapper_simd_save_YMM_end -
@@ -441,8 +454,11 @@ create_wrapper(struct patch_desc *patch, void *dest_routine,
 	/* the instruction pushing the syscall's address to the stack */
 	create_push_imm(begin + o_push_origin, (uint32_t)patch->syscall_offset);
 
-	create_movabs_r11(begin + o_mov_return_r11,
-	    (uint64_t)(begin + o_call + 5));
+	create_movabs_r11(begin + o_mov_return_r11_no_syscall,
+	    (uint64_t)(begin + o_ret_no_syscall));
+
+	create_movabs_r11(begin + o_mov_return_r11_syscall,
+	    (uint64_t)(begin + o_ret_syscall));
 
 	create_movabs_r11(begin + o_mov_magic_r11,
 	    (uint64_t)&magic_routine + 1);

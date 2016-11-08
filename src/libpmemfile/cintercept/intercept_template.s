@@ -63,7 +63,8 @@
 .global intercept_asm_wrapper_simd_save;
 .global intercept_asm_wrapper_prefix;
 .global intercept_asm_wrapper_push_origin_addr;
-.global intercept_asm_wrapper_mov_return_addr_r11;
+.global intercept_asm_wrapper_mov_return_addr_r11_no_syscall;
+.global intercept_asm_wrapper_mov_return_addr_r11_syscall;
 .global intercept_asm_wrapper_mov_libpath_r11;
 .global intercept_asm_wrapper_mov_magic_r11;
 .global intercept_asm_wrapper_call;
@@ -75,7 +76,8 @@
 .global intercept_asm_wrapper_simd_save_YMM_end;
 .global intercept_asm_wrapper_simd_restore_YMM;
 .global intercept_asm_wrapper_simd_restore_YMM_end;
-
+.global intercept_asm_wrapper_return_and_no_syscall;
+.global intercept_asm_wrapper_return_and_syscall;
 
 .text
 
@@ -90,7 +92,7 @@ xlongjmp:
 
 magic_routine:
 	.cfi_startproc
-	.cfi_def_cfa_offset 0x560
+	.cfi_def_cfa_offset 0x570
 .fill 2, 1, 0x90
 	.cfi_endproc
 
@@ -106,18 +108,6 @@ intercept_asm_wrapper_prefix:
 	 * preceding the syscall instruction in glibc was overwritten
 	 */
 .fill 20, 1, 0x90
-
-	/*
-	 * Jump back to libc on clone, vfork, execve, rt_sigreturn.
-	 */ 
-	cmp         $0x38, %rax
-	je          L1
-	cmp         $0x3a, %rax
-	je          L1
-	cmp         $0x3b, %rax
-	je          L1
-	cmp         $0x0f, %rax
-	je          L1
 
 	subq        $0x80, %rsp  /* red zone */
 
@@ -168,24 +158,32 @@ intercept_asm_wrapper_simd_save:
 	movq        %rsp, %r11
 
 	movq        %rbp, %rsp
-	subq        $0x530, %rsp
+	subq        $0x540, %rsp
 
-	pushq       %r11
-
-intercept_asm_wrapper_mov_return_addr_r11:
 	/*
-	 * Placeholder for a movabs instruction, putting the return address
-	 * into r11. This should help unwinding the stack.
+	 * The following values pushed on the stack are
+	 * arguments of the C routine.
+	 * First we push value of rsp that should be restored
+	 * upon returning to this code.
+	 *
+	 * See: intercept_routine in intercept.c
 	 */
+	pushq       %r11 /* rsp_in_asm_wrapper */
+
+intercept_asm_wrapper_mov_return_addr_r11_no_syscall:
 .fill 10, 1, 0x90
-	pushq       %r11
+	pushq       %r11 /* return_to_asm_wrapper */
+
+intercept_asm_wrapper_mov_return_addr_r11_syscall:
+.fill 10, 1, 0x90
+	pushq       %r11 /* return_to_asm_wrapper_syscall */
 
 intercept_asm_wrapper_mov_libpath_r11:
 .fill 10, 1, 0x90
-	pushq       %r11
+	pushq       %r11 /* libpath */
 
 intercept_asm_wrapper_push_origin_addr:
-.fill 5, 1, 0x90
+.fill 5, 1, 0x90 /* syscall_offset */
 
 
 	/*
@@ -222,6 +220,12 @@ intercept_asm_wrapper_call:
 
 	/* addq        $0x18, %rsp */
 
+intercept_asm_wrapper_return_and_no_syscall:
+	movq        $0x1, %r11
+	jmp L1
+intercept_asm_wrapper_return_and_syscall:
+	movq        $0x0, %r11
+L1:
 	popq        %rbx
 
 intercept_asm_wrapper_simd_restore:
@@ -255,8 +259,10 @@ intercept_asm_wrapper_simd_restore:
 	popq        %rbp
 	addq        $0x80, %rsp  /* return address + mock rbp + red zone */
 
-	jmp         L2
-L1:
+	cmp         $0x1, %r11
+	je          L2
+	/* execute fork, clone, etc.. */
+	/* assuming the syscall does not use a seventh argument */
 	syscall
 L2:
 	nop
