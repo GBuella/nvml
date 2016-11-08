@@ -158,7 +158,7 @@ intercept_asm_wrapper_simd_save:
 	movq        %rsp, %r11
 
 	movq        %rbp, %rsp
-	subq        $0x540, %rsp
+	subq        $0x548, %rsp
 
 	/*
 	 * The following values pushed on the stack are
