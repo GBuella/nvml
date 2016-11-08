@@ -250,8 +250,6 @@ print_clone_flags(char buffer[static 0x100], long flags)
 		c += sprintf(c, "CLONE_PARENT_SETTID |");
 	if ((flags & CLONE_PTRACE) == CLONE_PTRACE)
 		c += sprintf(c, "CLONE_PTRACE |");
-	if ((flags & CLONE_PTRACE) == CLONE_PTRACE)
-		c += sprintf(c, "CLONE_PTRACE |");
 	if ((flags & CLONE_SETTLS) == CLONE_SETTLS)
 		c += sprintf(c, "CLONE_SETTLS |");
 	if ((flags & CLONE_SIGHAND) == CLONE_SIGHAND)
@@ -260,8 +258,6 @@ print_clone_flags(char buffer[static 0x100], long flags)
 		c += sprintf(c, "CLONE_SYSVSEM |");
 	if ((flags & CLONE_THREAD) == CLONE_THREAD)
 		c += sprintf(c, "CLONE_THREAD |");
-	if ((flags & CLONE_UNTRACED) == CLONE_UNTRACED)
-		c += sprintf(c, "CLONE_UNTRACED |");
 	if ((flags & CLONE_UNTRACED) == CLONE_UNTRACED)
 		c += sprintf(c, "CLONE_UNTRACED |");
 	if ((flags & CLONE_VFORK) == CLONE_VFORK)
