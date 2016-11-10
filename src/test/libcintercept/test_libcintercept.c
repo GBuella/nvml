@@ -36,35 +36,59 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sched.h>
+#include <sys/wait.h>
+
+#include <pthread.h>
+
+static void *
+busy(void *arg)
+{
+	FILE *f = (FILE *)arg;
+	char buffer[0x100];
+	size_t s;
+
+	usleep(100000);
+	s = fread(buffer, 1, sizeof(buffer), f);
+	usleep(100000);
+	fwrite(buffer, 1, s, stdout);
+	putchar('\n');
+	usleep(100000);
+	puts("Done being busy here");
+	fflush(stdout);
+	usleep(10000);
+
+	return NULL;
+}
 
 int
 main(int argc, char *argv[])
 {
-	char buffer[0x100];
 	FILE *f;
-	size_t s;
 
 	setvbuf(stdout, NULL, _IOLBF, 0);
+
 	if (argc < 2)
 		return EXIT_FAILURE;
 
 	if ((f = fopen(argv[1], "r")) == NULL)
 		return EXIT_FAILURE;
-	s = fread(buffer, 1, sizeof(buffer), f);
-	fwrite(buffer, 1, s, stdout);
-	putchar('\n');
+
+	if (fork() == 0) {
+		busy(f);
+	} else {
+		wait(NULL);
+#ifdef USE_CLONE
+		pthread_t t;
+		if (pthread_create(&t, NULL, busy, f) != 0)
+			return EXIT_FAILURE;
+		pthread_join(t, NULL);
+#endif
+		busy(f);
+	}
+
 	fclose(f);
 
-	/*
-	 * "c" flag is glibc specific,
-	 * should find a way to test this only
-	 * when glibc is known to be present.
-	 */
-	if ((f = fopen(argv[1], "rc")) == NULL)
-		return EXIT_FAILURE;
-	s = fread(buffer, 1, sizeof(buffer), f);
-	fwrite(buffer, 1, s, stdout);
-	putchar('\n');
-	fclose(f);
 	return EXIT_SUCCESS;
 }

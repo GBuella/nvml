@@ -31,9 +31,22 @@
 #
 
 #
-# src/test/libcintercept/Makefile -- build libcintercept test
+# src/test/libcintercept/Makefile -- build libcintercept test programs
 #
-TARGET = test_libcintercept
+all: test_libcintercept_libc test_libcintercept_libc_lpthread
+
+test_libcintercept_libc: test_libcintercept_libc.o
+	$(CC) -ggdb $< -o $@
+
+test_libcintercept_libc.o: test_libcintercept.c
+	$(CC) -ggdb $< -c -o $@
+
+test_libcintercept_libc_lpthread: test_libcintercept_libc_lpthread.o
+	$(CC) -ggdb -lpthread $< -o $@
+
+test_libcintercept_libc_lpthread.o: test_libcintercept.c
+	$(CC) -ggdb -DUSE_CLONE=1 $< -c -o $@
+
 OBJS = test_libcintercept.o
 
 include ../Makefile.inc

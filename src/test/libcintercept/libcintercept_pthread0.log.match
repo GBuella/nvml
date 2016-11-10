@@ -1,0 +1,33 @@
+$(S) $(XX) -- open("test_libcintercept.c", O_RDONLY, 0666) = 4
+$(S) $(XX) -- clone(CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID, (nil), (nil), $(XX), $(N))
+$(S) $(XX) -- fstat(4, $(XX)) = 0
+$(S) $(XX) -- read(4, "/*\n * Copyright 2016, Intel Corporation\n *\n * Redistribution and use in source and binary forms, with or without\n * mo...", $(N)) = $(N)
+$(S) $(XX) -- fstat(1, $(XX)) = 0
+$(S) $(XX) -- write(1, "/*\n", 3) = 3
+$(S) $(XX) -- write(1, " * Copyright 2016, Intel Corporation\n", 37) = 37
+$(S) $(XX) -- write(1, " *\n", 3) = 3
+$(S) $(XX) -- write(1, " * Redistribution and use in source and binary forms, with or without\n", 70) = 70
+$(S) $(XX) -- write(1, " * modification, are permitted provided that the following conditions\n", 70) = 70
+$(S) $(XX) -- write(1, " * are met:\n", 12) = 12
+$(S) $(XX) -- write(1, " *\n", 3) = 3
+$(S) $(XX) -- write(1, " *     * Redistributions of source code must retain the ab\n", 59) = 59
+$(S) $(XX) -- write(1, "Done being busy here\n", 21) = 21
+$(S) $(XX) -- close(4) = 0
+$(S) $(XX) -- wait4(-1, 0x0, 0x0, 0x0) = $(N)
+$(S) $(XX) -- clone(CLONE_CHILD_CLEARTID | CLONE_FILES | CLONE_FS | CLONE_PARENT_SETTID | CLONE_SETTLS | CLONE_SIGHAND | CLONE_SYSVSEM | CLONE_THREAD | CLONE_VM, $(XX), $(XX), $(XX), $(N))
+$(S) $(XX) -- fstat(4, $(XX)) = 0
+$(S) $(XX) -- read(4, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0...", $(N)) = 0
+$(S) $(XX) -- fstat(1, $(XX)) = 0
+$(S) $(XX) -- write(1, "\n", 1) = 1
+$(S) $(XX) -- write(1, "Done being busy here\n", 21) = 21
+$(S) $(XX) -- read(4, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0...", $(N)) = 0
+$(S) $(XX) -- write(1, "\n", 1) = 1
+$(S) $(XX) -- write(1, "Done being busy here\n", 21) = 21
+$(S) $(XX) -- close(4) = 0
+$(S) $(XX) -- write(1, " *       from this software without sp\n", 39) = 39
+$(S) $(XX) -- write(1, "Done being busy here\n", 21) = 21
+$(S) $(XX) -- write(1, "RTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT\n * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIR...", 206) = 206
+$(S) $(XX) -- write(1, " * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR \n", 51) = 51
+$(S) $(XX) -- write(1, "SERVICES; LOSS OF USE,\n * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\n * THEORY OF LIABILITY, ...", 240) = 240
+$(S) $(XX) -- write(1, " * OF THIS SOFTW\n", 17) = 17
+$(S) $(XX) -- write(1, "Done being busy here\n", 21) = 21
