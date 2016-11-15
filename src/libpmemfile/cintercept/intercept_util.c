@@ -782,6 +782,13 @@ intercept_log_syscall(const char *libpath, long nr, long arg0, long arg1,
 				f_hex, arg1,
 				f_hex, arg2,
 				result);
+	} else if (nr == SYS_execveat) {
+		buf = print_syscall(buf, "execve", 4,
+				f_dec, arg0,
+				f_str, arg1,
+				f_hex, arg2,
+				f_hex, arg3,
+				result);
 	} else if (nr == SYS_exit_group) {
 		buf += sprintf(buf, "exit_group(%d)", (int)arg0);
 	} else if (nr == SYS_exit) {
@@ -793,7 +800,7 @@ intercept_log_syscall(const char *libpath, long nr, long arg0, long arg1,
 		buf += sprintf(buf, "clone(%s, %p, %p, %p, %ld)",
 		    sflags, (void *)arg1, (void *)arg2, (void *)arg3, arg4);
 	} else if (nr == SYS_fork) {
-		buf += sprintf(buf, "fork()");
+		buf = print_syscall(buf, "fork", 0, result);
 	} else if (nr == SYS_vfork) {
 		buf += sprintf(buf, "vfork()");
 	} else if (nr == SYS_wait4) {
