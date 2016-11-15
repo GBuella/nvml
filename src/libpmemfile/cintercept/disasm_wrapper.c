@@ -65,14 +65,12 @@ intercept_disasm_next_instruction(struct intercept_disasm_context *context,
 	(void) context;
 
 	struct intercept_disasm_result result;
-	char outbuf[256];
 	iflag_t prefer;
 	iflag_clear_all(&prefer);
 	struct insn instruction;
 	const struct itemplate *instruction_template;
 
-	result.length = disasm(code, outbuf, sizeof(outbuf),
-				64, 0, &prefer,
+	result.length = disasm(code, 64, &prefer,
 				&instruction, &instruction_template);
 
 	if (result.length == 0)

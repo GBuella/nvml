@@ -1072,8 +1072,7 @@ static int matches(const struct itemplate *t, const uint8_t *data,
 }
 
 
-uint32_t disasm(const uint8_t *data, char *output, int outbufsize, int segsize,
-            int32_t offset, iflag_t *prefer,
+uint32_t disasm(const uint8_t *data, int segsize, iflag_t *prefer,
 		struct insn *instruction,
 		const struct itemplate **instruction_template)
 {

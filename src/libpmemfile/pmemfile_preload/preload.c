@@ -381,9 +381,12 @@ static long
 hook_fd_syscalls(long syscall_number, struct fd_association *file,
 			long fd, long arg1,
 			long arg2, long arg3,
-			long arg4, long arg5,
-			long *result)
+			long arg4, long arg5)
 {
+	(void) fd;
+	(void) arg4;
+	(void) arg5;
+
 	if (syscall_number == SYS_write)
 		return hook_write(file, (char *)arg1, (size_t)arg2);
 	else if (syscall_number == SYS_read)
@@ -486,7 +489,7 @@ hook(long syscall_number,
 
 	if (file != NULL)
 		*result = hook_fd_syscalls(syscall_number, file,
-				fd, arg1, arg2, arg3, arg4, arg5, result);
+				fd, arg1, arg2, arg3, arg4, arg5);
 	else
 		*result = -EBADF;
 

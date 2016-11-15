@@ -45,8 +45,7 @@
 
 #define INSN_MAX 32 /* one instruction can't be longer than this */
 
-uint32_t disasm(const uint8_t *data, char *output, int outbufsize, int segsize,
-		int32_t offset, iflag_t *prefer,
+uint32_t disasm(const uint8_t *data, int segsize, iflag_t *prefer,
 		struct insn *instruction,
 		const struct itemplate **instruction_template);
 
