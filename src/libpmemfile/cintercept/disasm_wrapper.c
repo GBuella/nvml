@@ -89,21 +89,6 @@ intercept_disasm_destroy(struct intercept_disasm_context *context)
 	(void) syscall_no_intercept(SYS_munmap, context, sizeof(*context));
 }
 
-struct intercept_disasm_context *
-intercept_disasm_init(const unsigned char *begin, const unsigned char *end)
-{
-	(void) begin;
-	(void) end;
-
-	return NULL; // nothing to do for NASM
-}
-
-void
-intercept_disasm_destroy(struct intercept_disasm_context *context)
-{
-	(void) context; // nothing to do for NASM
-}
-
 struct intercept_disasm_result
 intercept_disasm_next_instruction(struct intercept_disasm_context *context,
 					const unsigned char *code)
