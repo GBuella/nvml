@@ -64,6 +64,8 @@ struct intercept_disasm_result {
 	/* call instruction */
 	bool is_call;
 
+	bool is_jump;
+
 	/*
 	 * The flag is_rel_jump marks any instruction that jumps, to
 	 * a relative address encoded in its operand.

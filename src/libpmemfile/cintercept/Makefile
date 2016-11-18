@@ -51,4 +51,5 @@ ASMSOURCE = \
 
 include ../../Makefile.inc
 
+CFLAGS += -Wextra
 LIBS += -ldl -lcapstone

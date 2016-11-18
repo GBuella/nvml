@@ -200,13 +200,14 @@ create_patch_wrappers(struct intercept_desc *desc)
 
 			patch->uses_prev_ins =
 			    !(patch->preceding_ins.has_ip_relative_opr ||
-			    patch->preceding_ins.is_rel_jump ||
+			    patch->preceding_ins.is_call ||
+			    patch->preceding_ins.is_jump ||
 			    patch->preceding_ins.is_ret ||
 			    has_jump(desc, patch->syscall_addr));
 
 			patch->uses_prev_ins_2 = patch->uses_prev_ins &&
 			    !(patch->preceding_ins_2.has_ip_relative_opr ||
-			    patch->preceding_ins_2.is_rel_jump ||
+			    patch->preceding_ins_2.is_call ||
 			    patch->preceding_ins_2.is_ret ||
 			    has_jump(desc, patch->syscall_addr
 				- patch->preceding_ins.length));
@@ -214,6 +215,7 @@ create_patch_wrappers(struct intercept_desc *desc)
 			patch->uses_next_ins =
 			    !(patch->following_ins.has_ip_relative_opr ||
 			    patch->following_ins.is_rel_jump ||
+			    patch->following_ins.is_call ||
 			    has_jump(desc,
 				patch->syscall_addr + SYSCALL_INS_SIZE));
 

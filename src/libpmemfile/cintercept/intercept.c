@@ -245,8 +245,6 @@ intercept_routine(long nr, long arg0, long arg1,
 		intercept_log_syscall(libpath, nr,
 		    arg0, arg1, arg2, arg3, arg4, arg5,
 		    syscall_offset, 0);
-
-		intercept_log_close();
 	} else if (nr == SYS_clone ||
 	    nr == SYS_vfork ||
 	    nr == SYS_rt_sigreturn) {

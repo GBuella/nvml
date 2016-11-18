@@ -42,6 +42,7 @@
 #include "intercept_util.h"
 #include "disasm_wrapper.h"
 
+#include <assert.h>
 #include <string.h>
 #include <syscall.h>
 #include <capstone/capstone.h>
@@ -98,7 +99,7 @@ intercept_disasm_next_instruction(struct intercept_disasm_context *context,
 	struct intercept_disasm_result result;
 	const unsigned char *start = code;
 	size_t size = (size_t)(context->end - code + 1);
-	uint64_t address;
+	uint64_t address = (uint64_t)code;
 
 	if (!cs_disasm_iter(context->handle, &start, &size,
 	    &address, context->insn)) {
@@ -117,6 +118,37 @@ intercept_disasm_next_instruction(struct intercept_disasm_context *context,
 
 	result.is_ret = (context->insn->id == X86_INS_RET);
 
+	result.is_rel_jump = false;
+	result.is_indirect_jump = false;
+
+	switch (context->insn->id) {
+		case X86_INS_JAE:
+		case X86_INS_JA:
+		case X86_INS_JBE:
+		case X86_INS_JB:
+		case X86_INS_JCXZ:
+		case X86_INS_JECXZ:
+		case X86_INS_JE:
+		case X86_INS_JGE:
+		case X86_INS_JG:
+		case X86_INS_JLE:
+		case X86_INS_JL:
+		case X86_INS_JMP:
+		case X86_INS_JNE:
+		case X86_INS_JNO:
+		case X86_INS_JNP:
+		case X86_INS_JNS:
+		case X86_INS_JO:
+		case X86_INS_JP:
+		case X86_INS_JRCXZ:
+		case X86_INS_JS:
+			result.is_jump = true;
+			break;
+		default:
+			result.is_jump = false;
+			break;
+	}
+
 	result.has_ip_relative_opr = false;
 
 	for (uint8_t op_i = 0;
@@ -130,6 +162,10 @@ intercept_disasm_next_instruction(struct intercept_disasm_context *context,
 				    op->reg == X86_REG_RIP) {
 					result.has_ip_relative_opr = true;
 				}
+				if (result.is_jump) {
+					assert(!result.is_rel_jump);
+					result.is_indirect_jump = true;
+				}
 				break;
 			case X86_OP_MEM:
 				if (op->mem.base == X86_REG_IP ||
@@ -138,19 +174,25 @@ intercept_disasm_next_instruction(struct intercept_disasm_context *context,
 				    op->mem.index == X86_REG_RIP) {
 					result.has_ip_relative_opr = true;
 				}
+				if (result.is_jump) {
+					assert(!result.is_indirect_jump);
+					result.is_rel_jump = true;
+					result.jump_delta = op->mem.disp;
+					result.jump_target =
+					    code + result.length + op->mem.disp;
+				}
+			case X86_OP_IMM:
+				if (result.is_jump) {
+					assert(!result.is_indirect_jump);
+					result.is_rel_jump = true;
+					result.jump_target = (void *)op->imm;
+					result.jump_delta =
+					    (unsigned char *)op->imm - code;
+				}
 			default:
 				break;
 		}
 	}
-
-	result.is_rel_jump = (context->insn->detail->x86.disp != 0);
-	result.jump_delta = context->insn->detail->x86.disp;
-
-	if (result.is_rel_jump)
-		result.jump_target = code + result.length + result.jump_delta;
-
-	// TODO: figure this out
-	// result.is_indirect_jump = ??
 
 	return result;
 }

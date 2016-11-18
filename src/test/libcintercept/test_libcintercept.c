@@ -45,19 +45,32 @@
 static void *
 busy(void *arg)
 {
-	FILE *f = (FILE *)arg;
+	FILE *f;
+	const char *path = (const char *)arg;
 	char buffer[0x100];
 	size_t s;
 
+	if ((f = fopen(path, "r")) == NULL)
+		exit(EXIT_FAILURE);
+
 	usleep(100000);
 	s = fread(buffer, 1, sizeof(buffer), f);
+	if (s < 4)
+		exit(EXIT_FAILURE);
 	usleep(100000);
-	fwrite(buffer, 1, s, stdout);
+	fwrite(buffer, 1, 1, stdout);
+	fflush(stdout);
+	fwrite(buffer, 2, 1, stdout);
+	fflush(stdout);
+	fwrite(buffer, 3, 1, stdout);
+	fflush(stdout);
 	putchar('\n');
 	usleep(100000);
+	fflush(stdout);
 	puts("Done being busy here");
 	fflush(stdout);
 	usleep(10000);
+	fclose(f);
 
 	return NULL;
 }
@@ -65,30 +78,21 @@ busy(void *arg)
 int
 main(int argc, char *argv[])
 {
-	FILE *f;
-
-	setvbuf(stdout, NULL, _IOLBF, 0);
-
 	if (argc < 2)
 		return EXIT_FAILURE;
 
-	if ((f = fopen(argv[1], "r")) == NULL)
-		return EXIT_FAILURE;
-
 	if (fork() == 0) {
-		busy(f);
+		busy(argv[1]);
 	} else {
 		wait(NULL);
 #ifdef USE_CLONE
 		pthread_t t;
-		if (pthread_create(&t, NULL, busy, f) != 0)
+		if (pthread_create(&t, NULL, busy, argv[1]) != 0)
 			return EXIT_FAILURE;
 		pthread_join(t, NULL);
 #endif
-		busy(f);
+		busy(argv[1]);
 	}
-
-	fclose(f);
 
 	return EXIT_SUCCESS;
 }
