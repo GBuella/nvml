@@ -42,6 +42,7 @@
 #include "intercept_util.h"
 #include "disasm_wrapper.h"
 
+
 #include <assert.h>
 #include <string.h>
 #include <syscall.h>
@@ -177,10 +178,13 @@ intercept_disasm_next_instruction(struct intercept_disasm_context *context,
 				if (result.is_jump) {
 					assert(!result.is_indirect_jump);
 					result.is_rel_jump = true;
-					result.jump_delta = op->mem.disp;
+					result.jump_delta =
+					    (ptrdiff_t)op->mem.disp;
 					result.jump_target =
-					    code + result.length + op->mem.disp;
+					    (code + result.length) +
+					    result.jump_delta;
 				}
+				break;
 			case X86_OP_IMM:
 				if (result.is_jump) {
 					assert(!result.is_indirect_jump);
@@ -189,6 +193,7 @@ intercept_disasm_next_instruction(struct intercept_disasm_context *context,
 					result.jump_delta =
 					    (unsigned char *)op->imm - code;
 				}
+				break;
 			default:
 				break;
 		}
