@@ -59,6 +59,9 @@
 .global magic_routine;
 .type   magic_routine, @function
 
+.global magic_routine_2;
+.type   magic_routine_2, @function
+
 .global intercept_asm_wrapper_tmpl;
 .global intercept_asm_wrapper_simd_save;
 .global intercept_asm_wrapper_prefix;
@@ -67,6 +70,7 @@
 .global intercept_asm_wrapper_mov_return_addr_r11_syscall;
 .global intercept_asm_wrapper_mov_libpath_r11;
 .global intercept_asm_wrapper_mov_magic_r11;
+.global intercept_asm_wrapper_mov_magic_r11_2;
 .global intercept_asm_wrapper_call;
 .global intercept_asm_wrapper_simd_restore;
 .global intercept_asm_wrapper_postfix;
@@ -78,6 +82,8 @@
 .global intercept_asm_wrapper_simd_restore_YMM_end;
 .global intercept_asm_wrapper_return_and_no_syscall;
 .global intercept_asm_wrapper_return_and_syscall;
+.global intercept_asm_wrapper_push_stack_first_return_addr;
+.global intercept_asm_wrapper_mov_r11_stack_first_return_addr;
 
 .text
 
@@ -93,11 +99,24 @@ xlongjmp:
 magic_routine:
 	.cfi_startproc
 	.cfi_def_cfa_offset 0x580
-.fill 2, 1, 0x90
+	nop
+	nop
+	nop
+	nop
 	.cfi_endproc
 
 .size   magic_routine, .-magic_routine
 
+magic_routine_2:
+	.cfi_startproc
+	.cfi_def_cfa_offset 0x578
+	nop
+	nop
+	nop
+	nop
+	.cfi_endproc
+
+.size   magic_routine_2, .-magic_routine_2
 
 intercept_asm_wrapper_tmpl:
 	nop
@@ -109,7 +128,13 @@ intercept_asm_wrapper_prefix:
 	 */
 .fill 20, 1, 0x90
 
-	subq        $0x80, %rsp  /* red zone */
+intercept_asm_wrapper_mov_r11_stack_first_return_addr:
+.fill 20, 1, 0x90
+intercept_asm_wrapper_push_stack_first_return_addr:
+	subq        $0x8, %rsp
+.fill 10, 1, 0x90
+
+	subq        $0x78, %rsp  /* red zone */
 
 	pushq       %rbp
 	movq        %rsp, %rbp /* save the original rsp value */
@@ -159,6 +184,10 @@ intercept_asm_wrapper_simd_save:
 
 	movq        %rbp, %rsp
 	subq        $0x548, %rsp
+	andq        $0x8, %rbp
+	jnz         L3
+	subq        $0x8, %rsp
+L3:
 
 	/*
 	 * The following values pushed on the stack are
@@ -206,8 +235,15 @@ intercept_asm_wrapper_push_origin_addr:
 	movq        %rdi, %rsi
 	movq        %rax, %rdi
 
+	andq        $0x8, %rbp
+	jnz         L4
 intercept_asm_wrapper_mov_magic_r11:
 .fill 10, 1, 0x90
+	jmp         L5
+L4:
+intercept_asm_wrapper_mov_magic_r11_2:
+.fill 10, 1, 0x90
+L5:
 	pushq       %r11  /* push the fake return address */
 
 intercept_asm_wrapper_call:

@@ -328,14 +328,18 @@ extern unsigned char intercept_asm_wrapper_mov_return_addr_r11_no_syscall;
 extern unsigned char intercept_asm_wrapper_mov_return_addr_r11_syscall;
 extern unsigned char intercept_asm_wrapper_mov_libpath_r11;
 extern unsigned char intercept_asm_wrapper_mov_magic_r11;
+extern unsigned char intercept_asm_wrapper_mov_magic_r11_2;
 extern unsigned char intercept_asm_wrapper_simd_save_YMM;
 extern unsigned char intercept_asm_wrapper_simd_save_YMM_end;
 extern unsigned char intercept_asm_wrapper_simd_restore_YMM;
 extern unsigned char intercept_asm_wrapper_simd_restore_YMM_end;
 extern unsigned char intercept_asm_wrapper_return_and_no_syscall;
 extern unsigned char intercept_asm_wrapper_return_and_syscall;
+extern unsigned char intercept_asm_wrapper_push_stack_first_return_addr;
+extern unsigned char intercept_asm_wrapper_mov_r11_stack_first_return_addr;
 
 extern void magic_routine();
+extern void magic_routine_2();
 
 static size_t tmpl_size;
 static ptrdiff_t o_prefix;
@@ -351,6 +355,9 @@ static ptrdiff_t o_mov_return_r11_no_syscall;
 static ptrdiff_t o_mov_return_r11_syscall;
 static ptrdiff_t o_mov_libpath_r11;
 static ptrdiff_t o_mov_magic_r11;
+static ptrdiff_t o_mov_magic_r11_2;
+static ptrdiff_t o_push_first_return_addr;
+static ptrdiff_t o_mov_r11_first_return_addr;
 static size_t simd_save_YMM_size;
 static size_t simd_restore_YMM_size;
 
@@ -380,6 +387,11 @@ init_patcher(void)
 	    &intercept_asm_wrapper_mov_return_addr_r11_syscall - begin;
 	o_mov_libpath_r11 = &intercept_asm_wrapper_mov_libpath_r11 - begin;
 	o_mov_magic_r11 = &intercept_asm_wrapper_mov_magic_r11 - begin;
+	o_mov_magic_r11_2 = &intercept_asm_wrapper_mov_magic_r11_2 - begin;
+	o_mov_r11_first_return_addr =
+	    &intercept_asm_wrapper_mov_r11_stack_first_return_addr - begin;
+	o_push_first_return_addr =
+	    &intercept_asm_wrapper_push_stack_first_return_addr - begin;
 	simd_save_YMM_size = (size_t)(&intercept_asm_wrapper_simd_save_YMM_end -
 	    &intercept_asm_wrapper_simd_save_YMM);
 	simd_restore_YMM_size =
@@ -464,6 +476,27 @@ create_wrapper(struct patch_desc *patch, void *dest_routine,
 
 	create_movabs_r11(begin + o_mov_magic_r11,
 	    (uint64_t)&magic_routine + 1);
+
+	create_movabs_r11(begin + o_mov_magic_r11_2,
+	    (uint64_t)&magic_routine_2 + 1);
+
+#ifndef NDEBUG
+
+	create_movabs_r11(begin + o_mov_r11_first_return_addr,
+	    ((uint64_t)patch->syscall_addr) + 2);
+
+	// write a 'push %r11' instruction
+	// overwriting the 'subq $0x8, %rsp' instrucion
+	begin[o_push_first_return_addr] = 0x41;
+	begin[o_push_first_return_addr + 1] = 0x53;
+	begin[o_push_first_return_addr + 2] = 0x90;
+	begin[o_push_first_return_addr + 3] = 0x90;
+	begin[o_push_first_return_addr + 4] = 0x90;
+	begin[o_push_first_return_addr + 5] = 0x90;
+	begin[o_push_first_return_addr + 6] = 0x90;
+	begin[o_push_first_return_addr + 7] = 0x90;
+
+#endif
 
 	create_movabs_r11(begin + o_mov_libpath_r11, (uint64_t)libpath);
 
