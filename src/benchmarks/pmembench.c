@@ -259,7 +259,7 @@ static struct benchmark_clo pmembench_clos[] = {
 			.size	= clo_field_size(struct benchmark_args, seed),
 			.base	= CLO_INT_BASE_DEC,
 			.min	= 0,
-			.max	= ~0,
+			.max	= ULONG_MAX,
 		},
 	},
 	{
@@ -449,7 +449,7 @@ pmembench_print_results(struct benchmark *bench, struct benchmark_args *args,
 				size_t n_threads, size_t n_ops,
 				struct results *stats, struct latency *latency)
 {
-	double opsps = n_threads * n_ops / stats->avg;
+	double opsps = (double)n_threads * (double)n_ops / stats->avg;
 	printf("%f;%f;%f;%f;%f;%f;%ld;%ld;%ld;%f", stats->avg,
 			opsps,
 			stats->max,
@@ -561,7 +561,7 @@ pmembench_get_results(struct benchmark_worker **workers, size_t nworkers,
 		struct latency *stats, double *workers_times)
 {
 	memset(stats, 0, sizeof(*stats));
-	stats->min = ~0;
+	stats->min = UINT64_MAX;
 	uint64_t i;
 	uint64_t j;
 	uint64_t d;
@@ -606,10 +606,10 @@ pmembench_get_results(struct benchmark_worker **workers, size_t nworkers,
 				- nsecs_dummy;
 			d = nsecs > stats->avg ? nsecs - stats->avg :
 							stats->avg - nsecs;
-			stats->std_dev += d * d;
+			stats->std_dev += (double)d * (double)d;
 		}
 	}
-	stats->std_dev = sqrt(stats->std_dev / count);
+	stats->std_dev = sqrt(((double)stats->std_dev) / (double)count);
 
 }
 
@@ -624,11 +624,10 @@ pmembench_get_total_results(struct latency *stats, double *workers_times,
 	memset(total, 0, sizeof(*total));
 	memset(latency, 0, sizeof(*latency));
 	total->min = DBL_MAX;
-	latency->min = ~0;
+	latency->min = UINT64_MAX;
 	size_t nresults = repeats * nworkers;
 	size_t i;
 	size_t j;
-	size_t d;
 	double df;
 	for (i = 0; i < repeats; i++) {
 		/* latency */
@@ -640,12 +639,12 @@ pmembench_get_total_results(struct latency *stats, double *workers_times,
 
 		/* total time */
 		for (j = 0; j < nworkers; j++) {
-			int idx = i * nworkers + j;
+			size_t idx = i * nworkers + j;
 			total->avg += workers_times[idx];
 		}
 	}
 	latency->avg /= repeats;
-	total->avg /= nresults;
+	total->avg /= (double)nresults;
 	qsort(workers_times, nresults, sizeof(double), compare_doubles);
 	total->min = workers_times[0];
 	total->max = workers_times[nresults - 1];
@@ -656,21 +655,21 @@ pmembench_get_total_results(struct latency *stats, double *workers_times,
 		total->med = workers_times[nresults / 2];
 
 	for (i = 0; i < repeats; i++) {
-		d = stats[i].std_dev > latency->avg
-				? stats[i].std_dev - latency->avg
-				: latency->avg - stats[i].std_dev;
+		double d = (stats[i].std_dev > latency->avg)
+				? (stats[i].std_dev - (double)latency->avg)
+				: ((double)latency->avg - stats[i].std_dev);
 		latency->std_dev += d * d;
 
 		for (j = 0; j < nworkers; j++) {
-			int idx = i * nworkers + j;
+			size_t idx = i * nworkers + j;
 			df = workers_times[idx] > total->avg ?
 					workers_times[idx] - total->avg :
 					total->avg - workers_times[idx];
 			total->std_dev += df * df;
 		}
 	}
-	latency->std_dev = sqrt(latency->std_dev / repeats);
-	total->std_dev = sqrt(total->std_dev / nresults);
+	latency->std_dev = sqrt(latency->std_dev / (double)repeats);
+	total->std_dev = sqrt(total->std_dev / (double)nresults);
 }
 
 /*

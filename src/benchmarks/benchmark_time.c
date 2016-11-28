@@ -94,9 +94,9 @@ benchmark_time_get_secs(benchmark_time_t *t)
 unsigned long long
 benchmark_time_get_nsecs(benchmark_time_t *t)
 {
-	unsigned long long ret = t->tv_nsec;
+	unsigned long long ret = (unsigned long long)t->tv_nsec;
 
-	ret += t->tv_sec * NSECPSEC;
+	ret += (unsigned long long)t->tv_sec * (unsigned)NSECPSEC;
 
 	return ret;
 }

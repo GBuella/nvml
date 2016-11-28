@@ -50,15 +50,15 @@ extern "C" {
 #define _POBJ_CL_ALIGNMENT 64 /* cache line alignment for performance */
 
 typedef struct {
-	char padding[_POBJ_CL_ALIGNMENT];
+	char padding[_POBJ_CL_ALIGNMENT] __attribute__ ((aligned (64)));
 } PMEMmutex;
 
 typedef struct {
-	char padding[_POBJ_CL_ALIGNMENT];
+	char padding[_POBJ_CL_ALIGNMENT] __attribute__ ((aligned (64)));
 } PMEMrwlock;
 
 typedef struct {
-	char padding[_POBJ_CL_ALIGNMENT];
+	char padding[_POBJ_CL_ALIGNMENT] __attribute__ ((aligned (64)));
 } PMEMcond;
 
 void pmemobj_mutex_zero(PMEMobjpool *pop, PMEMmutex *mutexp);
