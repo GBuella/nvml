@@ -30,9 +30,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* intercept_template.s */
+
 /*
- * intercept_template.s
- *
  * The syscall instructions in glbic are
  * overwritten with a call instruction, which
  * jumps here. This assembly wrapper has to achieve multiple things
@@ -49,7 +49,9 @@
  * - call C function
  * - restore registers
  * - jump back to libc
- *
+ */
+
+/*
  * Besides this, many syscall instructions in libc are present in leaf
  * functions. These don't necessarily have to set up the stack pointer,
  * leaf functions can just use e.g. the address (RSP - 16) to store
@@ -65,7 +67,9 @@
  * - restore registers
  * - * increment the stack pointer by 128
  * - jump back to libc
- *
+ */
+
+/*
  * When patching libc, sometimes some instructions surrounding the original
  * syscall instruction need to be relocated, to make space for a jump
  * instruction that would otherwise not fit in the two byte of the syscall
@@ -86,7 +90,9 @@
  * The only register these instructions can't rely on, is RIP. Therefore
  * instructions such as 'mov $5, 6(%rip)', 'jmp 4', etc... can not be
  * relocated.
- *
+ */
+
+/*
  * The arguments in the C function call ABI are passed in a way
  * that is different from the syscall ABI. E.g. when calling the libc
  * function called 'syscall', the first argument is the syscall number,
@@ -103,7 +109,9 @@
  * - increment the stack pointer by 128
  * - execute instructions relocated from after the original syscall
  * - jump back to libc
- *
+ */
+
+/*
  * Sometimes the C function executes the actual syscall, sometimes
  * it calls a hook function to provide a user space implementation.
  * In case of creating a thread ( using SYS_clone ), none of these
@@ -124,7 +132,9 @@
  * - * if(special_syscall) execute syscall
  * - execute instructions relocated from after the original syscall
  * - jump back to libc
- *
+ */
+
+/*
  * Since there is a separate copy of this assembly template made in the
  * data segment for each patched syscall, a debugger is generally not able to
  * unwind the stack -- it needs debug information which can only be supplied
@@ -194,7 +204,9 @@
  * - if(R11 == 0) execute syscall
  * - execute instructions relocated from after the original syscall
  * - jump back to libc
- *
+ */
+
+/*
  * Alignment issues:
  * The ABI requires the stack pointer to aligned to a 16 byte boundary
  * upon entering a function. The leaf functions inside libc don't always
