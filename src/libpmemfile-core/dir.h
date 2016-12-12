@@ -32,6 +32,8 @@
 #ifndef PMEMFILE_DIR_H
 #define PMEMFILE_DIR_H
 
+#include <sys/types.h>
+
 #include "inode.h"
 
 struct pmemfile_path_info {
@@ -49,6 +51,11 @@ struct pmemfile_path_info {
 void traverse_path(PMEMfilepool *pfp, struct pmemfile_vinode *parent,
 		const char *path, bool get_parent,
 		struct pmemfile_path_info *path_info);
+
+void traverse_path_as(PMEMfilepool *pfp, struct pmemfile_vinode *parent,
+		const char *path, bool get_parent,
+		struct pmemfile_path_info *path_info,
+		struct pmemfile_user user);
 
 struct pmemfile_vinode *vinode_new_dir(PMEMfilepool *pfp,
 		struct pmemfile_vinode *parent, const char *name, mode_t mode,

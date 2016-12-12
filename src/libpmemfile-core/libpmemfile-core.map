@@ -36,6 +36,7 @@
 {
 	global:
 		pmemfile_access;
+		pmemfile_faccessat;
 		pmemfile_chdir;
 		pmemfile_chmod;
 		pmemfile_close;

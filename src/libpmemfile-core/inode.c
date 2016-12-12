@@ -478,8 +478,8 @@ inode_alloc(PMEMfilepool *pfp, uint64_t flags, struct pmemfile_time *t,
 	inode->mtime = *t;
 	inode->atime = *t;
 	inode->nlink = 0;
-	inode->uid = geteuid();
-	inode->gid = getegid();
+	inode->user.uid = geteuid();
+	inode->user.gid = getegid();
 
 	if (inode_is_regular_file(inode))
 		inode->file_data.blocks.length =
@@ -602,8 +602,8 @@ vinode_stat(struct pmemfile_vinode *vinode, struct stat *buf)
 	buf->st_ino = vinode->inode.oid.off;
 	buf->st_mode = inode->flags & (S_IFMT | S_IRWXU | S_IRWXG | S_IRWXO);
 	buf->st_nlink = inode->nlink;
-	buf->st_uid = inode->uid;
-	buf->st_gid = inode->gid;
+	buf->st_uid = inode->user.uid;
+	buf->st_gid = inode->user.gid;
 	buf->st_rdev = 0;
 	if ((off_t)inode->size < 0) {
 		errno = EOVERFLOW;
@@ -790,4 +790,114 @@ pmemfile_lstat(PMEMfilepool *pfp, const char *path, struct stat *buf)
 {
 	// XXX because symlinks are not yet implemented
 	return pmemfile_stat(pfp, path, buf);
+}
+
+static bool
+is_valid_access_mode(int mode)
+{
+	if (mode == 0)
+		return false;
+
+	if (mode == F_OK)
+		return true;
+
+	if ((mode & ~(R_OK | W_OK | X_OK)) != 0)
+		return false;
+
+	return true;
+}
+
+/*
+ * _pmemfile_faccessat
+ */
+static int
+_pmemfile_faccessat(PMEMfilepool *pfp, struct pmemfile_vinode *dir,
+			const char *path, int mode, int flags)
+{
+	if (!is_valid_access_mode(mode)) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	flags &= ~AT_SYMLINK_NOFOLLOW; /* No symlinks for now XXX */
+
+	flags &= ~AT_EACCESS; /* AT_EACCESS not supported for now XXX */
+
+	if (flags != 0) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	LOG(LDBG, "path %s", path);
+
+	int ret = 0;
+	struct pmemfile_path_info info;
+	struct pmemfile_user user = { .uid = getuid(), .gid = getgid() };
+	traverse_path_as(pfp, dir, path, false, &info, user);
+
+	if (info.remaining[0] != 0) {
+		bool is_dir = vinode_is_dir(info.vinode);
+		if (is_dir)
+			errno = ENOENT;
+		else
+			errno = ENOTDIR;
+		ret = -1;
+	} else {
+		struct pmemfile_inode *inode = D_RW(info.vinode->inode);
+
+		if ((mode & R_OK) == R_OK && !can_read(inode, user))
+			ret = -1;
+		else if ((mode & W_OK) == W_OK && !can_write(inode, user))
+			ret = -1;
+		else if ((mode & X_OK) == X_OK && !can_exec(inode, user))
+			ret = -1;
+
+		if (ret != 0)
+			errno = EACCES;
+	}
+
+	vinode_unref_tx(pfp, info.vinode);
+
+	return ret;
+}
+
+/*
+ * pmemfile_faccessat
+ */
+int
+pmemfile_faccessat(PMEMfilepool *pfp, PMEMfile *dir, const char *path,
+			int mode, int flags)
+{
+	struct pmemfile_vinode *at;
+	bool at_unref;
+
+	if (!path) {
+		errno = ENOENT;
+		return -1;
+	}
+
+	at = pool_get_dir_for_path(pfp, dir, path, &at_unref);
+
+	int ret = _pmemfile_faccessat(pfp, at, path, mode, flags);
+
+	int oerrno;
+	if (ret)
+		oerrno = errno;
+
+	if (at_unref)
+		vinode_unref_tx(pfp, at);
+
+	if (ret)
+		errno = oerrno;
+
+	return ret;
+}
+
+/*
+ * pmemfile_access
+ */
+int
+pmemfile_access(PMEMfilepool *pfp, const char *path, int mode)
+{
+	return pmemfile_faccessat(pfp, PMEMFILE_AT_CWD, path, mode, 0);
 }

@@ -95,6 +95,10 @@ int pmemfile_fstat(PMEMfilepool *, PMEMfile *file, struct stat *buf);
 int pmemfile_fstatat(PMEMfilepool *, PMEMfile *dir, const char *path,
 		struct stat *buf, int flags);
 
+int pmemfile_access(PMEMfilepool *, const char *path, int mode);
+int pmemfile_faccessat(PMEMfilepool *, PMEMfile *, const char *path,
+			int mode, int flags);
+
 struct linux_dirent;
 struct linux_dirent64;
 int pmemfile_getdents(PMEMfilepool *, PMEMfile *file,

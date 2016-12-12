@@ -126,4 +126,40 @@ void vinode_unref_tx(PMEMfilepool *pfp, struct pmemfile_vinode *vinode);
 
 void vinode_orphan(PMEMfilepool *pfp, struct pmemfile_vinode *vinode);
 
+static inline bool can_read(const struct pmemfile_inode *inode,
+				const struct pmemfile_user user)
+{
+	if (inode->user.uid == user.uid && (inode->flags & S_IRUSR) == S_IRUSR)
+		return true;
+
+	if (inode->user.gid == user.gid && (inode->flags & S_IRGRP) == S_IRGRP)
+		return true;
+
+	return (inode->flags & S_IROTH) == S_IROTH;
+}
+
+static inline bool can_write(const struct pmemfile_inode *inode,
+				const struct pmemfile_user user)
+{
+	if (inode->user.uid == user.uid && (inode->flags & S_IWUSR) == S_IWUSR)
+		return true;
+
+	if (inode->user.gid == user.gid && (inode->flags & S_IWGRP) == S_IWGRP)
+		return true;
+
+	return (inode->flags & S_IWOTH) == S_IWOTH;
+}
+
+static inline bool can_exec(const struct pmemfile_inode *inode,
+				const struct pmemfile_user user)
+{
+	if (inode->user.uid == user.uid && (inode->flags & S_IXUSR) == S_IXUSR)
+		return true;
+
+	if (inode->user.gid == user.gid && (inode->flags & S_IXGRP) == S_IXGRP)
+		return true;
+
+	return (inode->flags & S_IXOTH) == S_IXOTH;
+}
+
 #endif

@@ -106,18 +106,6 @@ pmemfile_pwrite(PMEMfilepool *pfp, PMEMfile *file,
 }
 
 int
-pmemfile_access(PMEMfilepool *pfp, const char *path, mode_t mode)
-{
-	check_pfp(pfp);
-
-	(void) path;
-	(void) mode;
-
-	errno = ENOTSUP;
-	return -1;
-}
-
-int
 pmemfile_sync(PMEMfilepool *pfp)
 {
 	check_pfp(pfp);

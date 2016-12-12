@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "callbacks.h"
 #include "dir.h"
@@ -694,7 +695,8 @@ pmemfile_getdents64(PMEMfilepool *pfp, PMEMfile *file,
 static void
 _traverse_pathat(PMEMfilepool *pfp, struct pmemfile_vinode *parent,
 		const char *path, bool get_parent,
-		struct pmemfile_path_info *path_info)
+		struct pmemfile_path_info *path_info,
+		struct pmemfile_user user)
 {
 	char tmp[PATH_MAX];
 	vinode_ref(pfp, parent);
@@ -702,7 +704,7 @@ _traverse_pathat(PMEMfilepool *pfp, struct pmemfile_vinode *parent,
 
 	memset(path_info, 0, sizeof(*path_info));
 
-	while (1) {
+	while (can_exec(D_RO(parent->inode), user)) {
 		struct pmemfile_vinode *child;
 		const char *lookup_path = path;
 		const char *slash = strchr(lookup_path, '/');
@@ -779,9 +781,10 @@ _traverse_pathat(PMEMfilepool *pfp, struct pmemfile_vinode *parent,
 }
 
 void
-traverse_path(PMEMfilepool *pfp, struct pmemfile_vinode *parent,
+traverse_path_as(PMEMfilepool *pfp, struct pmemfile_vinode *parent,
 		const char *path, bool get_parent,
-		struct pmemfile_path_info *path_info)
+		struct pmemfile_path_info *path_info,
+		struct pmemfile_user user)
 {
 	if (path[0] == '/') {
 		while (path[0] == '/')
@@ -789,7 +792,17 @@ traverse_path(PMEMfilepool *pfp, struct pmemfile_vinode *parent,
 		parent = pfp->root;
 	}
 
-	_traverse_pathat(pfp, parent, path, get_parent, path_info);
+	_traverse_pathat(pfp, parent, path, get_parent, path_info, user);
+}
+
+void
+traverse_path(PMEMfilepool *pfp, struct pmemfile_vinode *parent,
+		const char *path, bool get_parent,
+		struct pmemfile_path_info *path_info)
+{
+	struct pmemfile_user user = {.uid = geteuid(), .gid = getegid() };
+
+	traverse_path_as(pfp, parent, path, get_parent, path_info, user);
 }
 
 static int

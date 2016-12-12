@@ -95,19 +95,23 @@ struct pmemfile_time {
 #define PMEMFILE_INODE_VERSION(a) ((uint32_t)0x00444E49 | \
 		((uint32_t)(a + '0') << 24))
 
-/* Inode */
-struct pmemfile_inode {
-	/* Layout version */
-	uint32_t version;
-
+struct pmemfile_user {
 	/* Owner */
 	uint32_t uid;
 
 	/* Group */
 	uint32_t gid;
+};
+
+/* Inode */
+struct pmemfile_inode {
+	/* Layout version */
+	uint32_t version;
 
 	/* Number of bytes written in the last block */
 	uint32_t last_block_fill;
+
+	struct pmemfile_user user;
 
 	/* Time of last access. */
 	struct pmemfile_time atime;

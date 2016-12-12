@@ -56,7 +56,6 @@ ssize_t pmemfile_pread(PMEMfilepool *, PMEMfile *file,
 			char *buf, size_t count, off_t pos);
 ssize_t pmemfile_pwrite(PMEMfilepool *, PMEMfile *file,
 			const char *buf, size_t count, off_t pos);
-int pmemfile_access(PMEMfilepool *, const char *path, mode_t mode);
 int pmemfile_sync(PMEMfilepool *);
 int pmemfile_fdatasync(PMEMfilepool *, PMEMfile *);
 int pmemfile_rename(PMEMfilepool *, const char *old_path, const char *new_path);
