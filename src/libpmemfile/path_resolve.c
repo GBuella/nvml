@@ -50,6 +50,84 @@
 
 #include "preload.h"
 
+/*
+ * Mock implementation of pmemfile_open_parent.
+ * Hopefully, an efficient implementation of this inside corelib
+ * would speed up path resolution.
+ *
+ * Also: this totally ignores symlinks for now.
+ */
+static inline PMEMfile *
+pmemfile_open_parent(PMEMfilepool *pool, PMEMfile *first_at,
+			size_t path_size, char path[static path_size]
+
+		/* pmemfile_open_parent should not have this extra argument */
+			,
+			ino_t root_inode_number)
+{
+	struct stat stat_buf;
+	char *p = path + strspn(path, "/");
+	bool prev_was_root = (path[0] == '/');
+
+	if (path[0] == '/') {
+		prev_was_root == true;
+	} else {
+		if (pmemfile_fstat(pool, at, &stat_buf) != 0)
+			return NULL;
+
+		prev_was_root = (stat_buf.st_ino == root_inode_number);
+	}
+
+	PMEMfile *at = first_at;
+
+	while (*p != '\0') {
+		PMEMfile *new;
+		bool is_last_component;
+
+		p += strcspn(p, "/");
+
+		is_last_component = (*p == '\0');
+
+		*p = '\0';
+
+		if (strcmp(path, "..") == 0 && prev_was_root) {
+			if (at != first_at)
+				pmemfile_close(pool, at);
+			*p = '/';
+			return NULL;
+		}
+
+		if (is_last_component) {
+			*p = '/';
+			return at;
+		}
+
+		if (pmemfile_fstatat(pool, at, path, &stat_buf, 0) != 0) {
+			*p = '/';
+			return at;
+		}
+
+		prev_was_root = (stat_buf.st_ino == root_inode_number);
+
+		new = pmemfile_openat(pool, at, path, O_RDONLY | O_DIRECTORY);
+
+		*p = '/';
+
+		if (at != first_at)
+			pmemfile_close(pool, at);
+
+		if (new == NULL)
+			return NULL;
+
+		while (*p == '/')
+			++p;
+
+		strcpy(path, p);
+		at = new;
+	}
+	return at;
+}
+
 static int
 get_stat(struct resolved_path *result, struct stat *buf)
 {
