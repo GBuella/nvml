@@ -58,11 +58,10 @@
  * Also: this totally ignores symlinks for now.
  */
 static inline PMEMfile *
-pmemfile_open_parent(PMEMfilepool *pool, PMEMfile *first_at,
-			size_t path_size, char path[static path_size]
+pmemfile_open_parent(PMEMfilepool *pool, PMEMfile *at,
+			size_t path_size, char path[static path_size],
 
 		/* pmemfile_open_parent should not have this extra argument */
-			,
 			ino_t root_inode_number)
 {
 	struct stat stat_buf;
@@ -70,7 +69,7 @@ pmemfile_open_parent(PMEMfilepool *pool, PMEMfile *first_at,
 	bool prev_was_root = (path[0] == '/');
 
 	if (path[0] == '/') {
-		prev_was_root == true;
+		prev_was_root = true;
 	} else {
 		if (pmemfile_fstat(pool, at, &stat_buf) != 0)
 			return NULL;
@@ -78,7 +77,12 @@ pmemfile_open_parent(PMEMfilepool *pool, PMEMfile *first_at,
 		prev_was_root = (stat_buf.st_ino == root_inode_number);
 	}
 
-	PMEMfile *at = first_at;
+	at = pmemfile_openat(pool, at, ".", O_RDONLY | O_DIRECTORY);
+
+	/*
+	 * TODO:
+	 * if (at == NULL) ??
+	 */
 
 	while (*p != '\0') {
 		PMEMfile *new;
@@ -91,8 +95,7 @@ pmemfile_open_parent(PMEMfilepool *pool, PMEMfile *first_at,
 		*p = '\0';
 
 		if (strcmp(path, "..") == 0 && prev_was_root) {
-			if (at != first_at)
-				pmemfile_close(pool, at);
+			pmemfile_close(pool, at);
 			*p = '/';
 			return NULL;
 		}
@@ -113,8 +116,7 @@ pmemfile_open_parent(PMEMfilepool *pool, PMEMfile *first_at,
 
 		*p = '/';
 
-		if (at != first_at)
-			pmemfile_close(pool, at);
+		pmemfile_close(pool, at);
 
 		if (new == NULL)
 			return NULL;
@@ -389,10 +391,27 @@ resolve_path(struct fd_desc at,
 				continue;
 			}
 		} else {
-			if (stat_buf.st_ino ==
-			    result->at.pmem_fda.pool->pmem_stat.st_ino) {
-				exit_pool(result, &resolved, end, &size);
+			(void) exit_pool;
+
+			PMEMfile *new_at = pmemfile_open_parent(
+			    result->at.pmem_fda.pool->pool,
+			    result->at.pmem_fda.file,
+			    sizeof(result->path),
+			    result->path,
+			    result->at.pmem_fda.pool->pmem_stat.st_ino);
+
+			if (new_at == NULL) {
+				result->at.pmem_fda.pool = NULL;
+				resolved = 0;
 				continue;
+			} else {
+				result->at.pmem_fda.file = new_at;
+				/*
+				 * TODO
+				 * the caller must call pmemfile_close in
+				 * this case
+				 */
+				return;
 			}
 		}
 
