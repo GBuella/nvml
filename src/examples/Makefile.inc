@@ -44,7 +44,7 @@ include $(TOP)/src/common.inc
 
 CXXFLAGS = -std=c++11 -ggdb -Wall -Werror $(EXTRA_CXXFLAGS)
 CFLAGS = -std=gnu99 -ggdb -Wall -Werror -Wmissing-prototypes $(EXTRA_CFLAGS)
-LDFLAGS = -Wl,-rpath=$(LIBDIR) -L$(LIBDIR) $(EXTRA_LDFLAGS)
+LDFLAGS = -Wl,-rpath,$(LIBDIR) -L$(LIBDIR) $(EXTRA_LDFLAGS)
 INCS = -I$(INCDIR) -I. -I$(TOP_SRC)/examples
 
 LINKER=$(CC)
@@ -67,18 +67,18 @@ format: $(if $(DIRS), format-dirs)
 sparse: $(if $(DIRS), sparse-dirs)
 	$(if $(DIRS), , $(sparse-c))
 
-DYNAMIC_LIBRARIES = $(addprefix lib, $(addsuffix .so, $(LIBRARIES)))
+DYNAMIC_LIBRARIES = $(addprefix lib, $(addsuffix .$(SLIB_EXT), $(LIBRARIES)))
 STATIC_LIBRARIES = $(addprefix lib, $(addsuffix .a, $(LIBRARIES)))
 
 all-dirs clean-dirs clobber-dirs cstyle-dirs format-dirs sparse-dirs: $(DIRS)
 all-progs: $(PROGS)
 all-libraries: $(DYNAMIC_LIBRARIES) $(STATIC_LIBRARIES)
 
-$(foreach l, $(LIBRARIES), $(eval lib$(l).so: lib$(l).o))
+$(foreach l, $(LIBRARIES), $(eval lib$(l).$(SLIB_EXT): lib$(l).o))
 $(foreach l, $(LIBRARIES), $(eval lib$(l).a: lib$(l).o))
 $(foreach l, $(LIBRARIES), $(eval lib$(l).o: CFLAGS+=-fPIC))
 $(foreach l, $(LIBRARIES), $(eval lib$(l).o: CXXFLAGS+=-fPIC))
-$(foreach l, $(LIBRARIES), $(eval $(l): lib$(l).so lib$(l).a))
+$(foreach l, $(LIBRARIES), $(eval $(l): lib$(l).$(SLIB_EXT) lib$(l).a))
 $(foreach l, $(LIBRARIES), $(eval .PHONY: $(l)))
 
 $(DIRS):
@@ -132,7 +132,7 @@ $(STATIC_LIBRARIES):
 	$(AR) rv $@ $<
 
 $(DYNAMIC_LIBRARIES):
-	$(LINKER) -shared -o $@ $(LDFLAGS) -Wl,-shared,-soname=$@ $(LIBS) $<
+	$(LINKER) -shared -o $@ $(LDFLAGS) -Wl,$(SLIB_LD_FLAG),$(SLIB_NAME_LD_FLAG),$@ $<
 
 .PHONY: all clean clobber cstyle\
 	all-dirs clean-dirs clobber-dirs cstyle-dirs\

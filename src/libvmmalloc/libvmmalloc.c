@@ -57,6 +57,7 @@
  */
 
 #define _GNU_SOURCE
+_GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,7 +70,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+#ifdef VMMALLOC_OVERRIDE_MEMALIGN
 #include <malloc.h>
+#endif
 
 #include "libvmem.h"
 #include "libvmmalloc.h"

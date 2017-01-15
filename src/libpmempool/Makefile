@@ -40,9 +40,11 @@ INCS += -I$(TOP)/src/libpmemlog
 INCS += -I$(TOP)/src/libpmemblk
 INCS += -I$(TOP)/src/libpmemobj
 INCS += -I$(TOP)/src/rpmem_common
-INCS += -I$(TOP)/src/librpmem
 
+ifeq ($(BUILD_RPMEM),y)
+INCS += -I$(TOP)/src/librpmem
 vpath %.c ../librpmem
+endif
 
 SOURCE =\
 	$(COMMON)/file.c\
@@ -50,8 +52,6 @@ SOURCE =\
 	$(COMMON)/mmap.c\
 	$(COMMON)/mmap_linux.c\
 	$(COMMON)/pool_hdr.c\
-	$(COMMON)/pool_hdr_linux.c\
-	$(COMMON)/os_linux.c\
 	$(COMMON)/out.c\
 	$(COMMON)/set.c\
 	$(COMMON)/util.c\
@@ -70,12 +70,22 @@ SOURCE =\
 	pool.c\
 	replica.c\
 	$(RPMEM_COMMON)/rpmem_common.c\
-	rpmem_ssh.c\
-	rpmem_cmd.c\
-	rpmem_util.c\
 	sync.c\
 	transform.c\
 	rm.c
+
+ifeq ($(BUILD_RPMEM),y)
+	SOURCE += rpmem_ssh.c\
+		rpmem_cmd.c\
+		rpmem_util.c
+endif
+
+ifeq ($(shell uname), Darwin)
+	SOURCE += $(COMMON)/pool_hdr_osx.c
+else
+	SOURCE += $(COMMON)/pool_hdr_linux.c\
+		$(COMMON)/os_linux.c
+endif
 
 LIBPMEMBLK_PRIV_FUNCS=btt_info_set btt_arena_datasize btt_flog_size\
 	btt_map_size btt_flog_get_valid map_entry_is_initial btt_info_convert2h\
@@ -87,12 +97,15 @@ include ../Makefile.inc
 
 LIBS += -lpmem -ldl
 CFLAGS += -DUSE_LIBDL
+
+ifeq ($(BUILD_RPMEM),y)
 CFLAGS += -DUSE_RPMEM
+endif
 
 pmemblk_priv_funcs.o: $(PMEMBLK_PRIV_OBJ)
-	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMBLK_PRIV_FUNCS)) \
+	$(FILTER_GLOBALS) $(addprefix -G , $(LIBPMEMBLK_PRIV_FUNCS)) \
 	$< $@
 
 pmemlog_priv_funcs.o: $(PMEMLOG_PRIV_OBJ)
-	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMLOG_PRIV_FUNCS)) \
+	$(FILTER_GLOBALS) $(addprefix -G , $(LIBPMEMLOG_PRIV_FUNCS)) \
 	$< $@

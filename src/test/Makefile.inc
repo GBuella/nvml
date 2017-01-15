@@ -216,7 +216,11 @@ CFLAGS += -Wmissing-prototypes
 CFLAGS += $(COMMON_FLAGS)
 CFLAGS += $(EXTRA_CFLAGS)
 
-LDFLAGS = -Wl,--warn-common -Wl,--fatal-warnings $(EXTRA_LDFLAGS)
+ifeq ($(IS_APPLE_LD), y)
+	LDFLAGS += -Wl,-fatal_warnings
+else
+	LDFLAGS += -Wl,-z,relro -Wl,--fatal-warnings -Wl,--warn-common
+endif
 
 LINKER=$(CC)
 ifeq ($(COMPILE_LANG), cpp)
@@ -337,7 +341,10 @@ endif
 sync-test: all $(SYNC_FILE) $(TESTCONFIG)
 
 TST=$(shell basename `pwd`)
-TSTCHECKS=$(shell ls -1 TEST* | grep -v -i -e "\.ps1" | sort -V)
+
+# TODO: sort -V  when available...
+
+TSTCHECKS=$(shell ls -1 TEST* | grep -v -i -e "\.ps1" | sort)
 
 $(TSTCHECKS): sync-test
 	@cd .. && ./RUNTESTS ${TST} $(RUNTEST_OPTIONS) -s $@

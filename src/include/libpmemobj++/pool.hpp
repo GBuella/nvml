@@ -40,6 +40,7 @@
 
 #include <stddef.h>
 #include <sys/stat.h>
+#include <string>
 
 #include "libpmemobj++/detail/pexceptions.hpp"
 #include "libpmemobj++/p.hpp"

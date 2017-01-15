@@ -644,7 +644,6 @@ err_parse:
 	return -1;
 #else
 	FATAL("remote replication not supported");
-	return -1;
 #endif
 }
 

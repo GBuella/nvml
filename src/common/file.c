@@ -44,7 +44,7 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#ifndef _WIN32
+#ifdef __linux
 #include <sys/sysmacros.h>
 #endif
 
@@ -53,12 +53,12 @@
 #include "out.h"
 #include "mmap.h"
 
+#ifdef __linux
 #define DEVICE_DAX_PREFIX "/sys/class/dax"
 #define MAX_SIZE_LENGTH 64
 
 #define DEVICE_DAX_ZERO_LEN (2 * MEGABYTE)
 
-#ifndef _WIN32
 /*
  * device_dax_size -- (internal) checks the size of a given dax device
  */
@@ -132,7 +132,7 @@ util_fd_is_device_dax(int fd)
 {
 	LOG(3, "fd %d", fd);
 
-#ifdef _WIN32
+#ifndef __linux
 	return 0;
 #else
 	os_stat_t st;
@@ -185,7 +185,7 @@ util_file_is_device_dax(const char *path)
 {
 	LOG(3, "path \"%s\"", path);
 
-#ifdef _WIN32
+#ifndef __linux
 	return 0;
 #else
 	int olderrno = errno;
@@ -221,7 +221,7 @@ util_file_get_size(const char *path)
 {
 	LOG(3, "path \"%s\"", path);
 
-#ifndef _WIN32
+#ifdef __linux
 	if (util_file_is_device_dax(path)) {
 		return device_dax_size(path);
 	}
@@ -454,11 +454,13 @@ util_file_create(const char *path, size_t size, size_t minsize)
 	int fd;
 	int mode;
 	int flags = O_RDWR | O_CREAT | O_EXCL;
-#ifndef _WIN32
+#ifdef __linux
 	mode = 0;
 #else
 	mode = S_IWRITE | S_IREAD;
+#ifdef O_BINARY
 	flags |= O_BINARY;
+#endif
 #endif
 
 	/*
@@ -505,8 +507,10 @@ util_file_open(const char *path, size_t *size, size_t minsize, int flags)
 	int oerrno;
 	int fd;
 
-#ifdef _WIN32
+#ifndef __linux
+#ifdef O_BINARY
 	flags |= O_BINARY;
+#endif
 #endif
 
 	if ((fd = os_open(path, flags)) < 0) {

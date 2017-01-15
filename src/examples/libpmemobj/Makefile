@@ -47,6 +47,7 @@ $(info NOTE: Skipping C++ examples because of compiler issues)
 endif
 
 LIBS = -lpmemobj -lpmem -pthread -lm -pthread
+$(info NOTE: setting LIBS here)
 
 include ../Makefile.inc
 

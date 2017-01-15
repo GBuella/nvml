@@ -37,6 +37,7 @@
 #ifndef NVML_SYS_UTIL_H
 #define NVML_SYS_UTIL_H 1
 
+#include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
 
@@ -115,6 +116,9 @@ util_rwlock_unlock(pthread_rwlock_t *m)
 	}
 }
 
+#if (defined(_POSIX_SPIN_LOCKS) && (_POSIX_SPIN_LOCKS - 200809L) >= 0L) || \
+	defined(_WIN32)
+
 /*
  * util_spin_init -- pthread_spin_init variant that logs on fail and sets errno.
  */
@@ -171,5 +175,7 @@ util_spin_unlock(pthread_spinlock_t *lock)
 		FATAL("!pthread_spin_unlock");
 	}
 }
+
+#endif /* _POSIX_SPIN_LOCKS */
 
 #endif

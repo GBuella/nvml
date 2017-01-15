@@ -33,8 +33,13 @@
 /*
  * spoil.c -- pmempool spoil command source file
  */
+
+/* XXX check for gnu libc instead of linux kernel */
+#ifdef __linux
 #include <features.h>
+#endif
 #define __USE_UNIX98
+__USE_UNIX98
 #include <unistd.h>
 #include <stdio.h>
 #include <getopt.h>

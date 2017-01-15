@@ -39,6 +39,8 @@
 #define _GNU_SOURCE
 #endif
 
+_GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,7 +54,9 @@
 #include <stddef.h>
 #include <time.h>
 #include <ctype.h>
+#ifdef __linux
 #include <linux/limits.h>
+#endif
 #include <sys/mman.h>
 
 #include "libpmem.h"
@@ -102,7 +106,11 @@ util_remote_init(void)
 	LOG(3, NULL);
 
 	util_mutex_init(&Remote_lock, NULL);
+#ifdef USE_RPMEM
 	Remote_replication_available = 1;
+#else
+	Remote_replication_available = 0;
+#endif
 }
 
 /*
@@ -129,7 +137,13 @@ util_dl_check_error(void *handle, const char *func)
 		char *errstr = util_dlerror();
 		if (errstr)
 			ERR("%s(): %s", func, errstr);
+#ifdef ELIBACC
 		errno = ELIBACC;
+#elif defined(EBADEXEC)
+		errno = EBADEXEC;
+#else
+#error
+#endif
 		return -1;
 	}
 	return 0;
@@ -1432,7 +1446,7 @@ int
 util_poolset_remote_replica_open(struct pool_set *set, unsigned repidx,
 	size_t minsize, int create, unsigned *nlanes)
 {
-#ifndef _WIN32
+#ifdef __linux
 	/*
 	 * This is a workaround for an issue with using device dax with
 	 * libibverbs. The problem is that we use ibv_fork_init(3) which
@@ -1586,19 +1600,24 @@ util_poolset_create_set(struct pool_set **setp, const char *path,
 
 	ret = util_poolset_parse(setp, path, fd);
 
-#ifdef _WIN32
+#ifndef __linux
 	if (ret)
 		goto err;
 
-	/* remote replication is not supported on Windows */
+	/* remote replication is only supported on Linux */
 	if ((*setp)->remote) {
 		util_poolset_free(*setp);
+
+#ifdef _WIN32
 		ERR("remote replication is not supported on Windows");
+#else
+		ERR("remote replication is not supported on this platform");
+#endif
 		errno = ENOTSUP;
 		ret = -1;
 		goto err;
 	}
-#endif /* _WIN32 */
+#endif /* !__linux */
 
 err:
 	oerrno = errno;

@@ -35,6 +35,7 @@
  */
 
 #include <stddef.h>
+#include <inttypes.h>
 
 #include "unittest.h"
 
@@ -84,7 +85,7 @@ main(int argc, char *argv[])
 		PMEMoid oid;
 		pmemobj_alloc(pop, &oid, ALLOC_SIZE, 0,
 				test_constructor, NULL);
-		UT_OUT("%d %lu", i, oid.off);
+		UT_OUT("%d %" PRIu64, i, oid.off);
 	}
 
 	pmemobj_close(pop);

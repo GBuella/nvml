@@ -208,6 +208,8 @@ pmemobj_mutex_assert_locked(PMEMobjpool *pop, PMEMmutex *mutexp)
 	return ret;
 }
 
+#if (defined(_POSIX_TIMEOUTS) && (_POSIX_TIMEOUTS - 200809L) >= 0L) || \
+	defined(_WIN32)
 /*
  * pmemobj_mutex_timedlock -- lock a pmem resident mutex
  *
@@ -231,6 +233,7 @@ pmemobj_mutex_timedlock(PMEMobjpool *pop, PMEMmutex *__restrict mutexp,
 
 	return pthread_mutex_timedlock(mutex, abs_timeout);
 }
+#endif
 
 /*
  * pmemobj_mutex_trylock -- trylock a pmem resident mutex
@@ -340,6 +343,8 @@ pmemobj_rwlock_wrlock(PMEMobjpool *pop, PMEMrwlock *rwlockp)
 	return pthread_rwlock_wrlock(rwlock);
 }
 
+#if (defined(_POSIX_TIMEOUTS) && (_POSIX_TIMEOUTS - 200809L) >= 0L) || \
+	defined(_WIN32)
 /*
  * pmemobj_rwlock_timedrdlock -- timedrdlock a pmem resident mutex
  *
@@ -389,6 +394,7 @@ pmemobj_rwlock_timedwrlock(PMEMobjpool *pop, PMEMrwlock *__restrict rwlockp,
 
 	return pthread_rwlock_timedwrlock(rwlock, abs_timeout);
 }
+#endif
 
 /*
  * pmemobj_rwlock_tryrdlock -- tryrdlock a pmem resident mutex

@@ -1,4 +1,6 @@
-# Copyright 2014-2017, Intel Corporation
+#!/bin/bash
+#
+# Copyright 2017, Intel Corporation
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,37 +29,43 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#
-# src/libpmemblk/Makefile -- Makefile for libpmemblk
 #
 
-LIBRARY_NAME = pmemblk
-LIBRARY_SO_VERSION = 1
-LIBRARY_VERSION = 0.0
-SOURCE =\
-	$(COMMON)/file.c\
-	$(COMMON)/file_linux.c\
-	$(COMMON)/mmap.c\
-	$(COMMON)/mmap_linux.c\
-	$(COMMON)/os_linux.c\
-	$(COMMON)/out.c\
-	$(COMMON)/pool_hdr.c\
-	$(COMMON)/set.c\
-	$(COMMON)/util.c\
-	$(COMMON)/uuid.c\
-	$(COMMON)/uuid_linux.c\
-	$(COMMON)/util_linux.c\
-	blk.c\
-	btt.c\
-	libpmemblk.c
+symbols_file=$(mktemp)
+NMEDIT=$1
+shift
+prev_is_dash_g="0"
+input_path=""
+output_path=""
 
-ifeq ($(shell uname), Darwin)
-	SOURCE += $(COMMON)/pool_hdr_osx.c
-else
-	SOURCE += $(COMMON)/pool_hdr_linux.c
-endif
+for a in $@
+do
+	if [ "$a" == "-G" ]; then
+		prev_is_dash_g="1"
+	else
+		if [ "$prev_is_dash_g" == "1" ]; then
+			if [ "$a" != "pmemobj_mutex_timedlock" -a \
+				"$a" != "pmemobj_rwlock_timedrdlock" -a \
+				"$a" != "pmemobj_rwlock_timedwrlock" -a \
+				"$a" != "__free_hook" -a \
+				"$a" != "__malloc_hook" -a \
+				"$a" != "__memalign_hook" -a \
+				"$a" != "__realloc_hook" -a \
+				"$a" != "memalign" -a \
+				"$a" != "pvalloc" -a \
+				"$a" != "valloc" ]; then
+				echo _$a >> $symbols_file
+			fi
+		elif [ "$input_path" == "" ]; then
+			input_path="$a"
+		elif [ "$output_path" == "" ]; then
+			output_path="$a"
+		else
+			echo error
+			exit 1
+		fi
+		prev_is_dash_g="0"
+	fi
+done
 
-include ../Makefile.inc
-
-LIBS += -pthread -lpmem
+$NMEDIT -s $symbols_file $input_path -o $output_path

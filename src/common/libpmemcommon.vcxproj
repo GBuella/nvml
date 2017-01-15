@@ -28,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dlsym.h" />
+    <ClInclude Include="elf_constants.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="mmap.h" />
     <ClInclude Include="os.h" />

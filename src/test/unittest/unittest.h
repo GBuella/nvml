@@ -404,8 +404,12 @@ int ut_fcntl(const char *file, int line, const char *func, int fd,
 off_t ut_lseek(const char *file, int line, const char *func, int fd,
     off_t offset, int whence);
 
+#if (defined(_POSIX_ADVISORY_INFO) &&\
+	((_POSIX_ADVISORY_INFO - 200809L) >= 0L)) ||\
+	defined(WIN32)
 int ut_posix_fallocate(const char *file, int line, const char *func, int fd,
     off_t offset, off_t len);
+#endif
 
 int ut_stat(const char *file, int line, const char *func, const char *path,
     os_stat_t *st_bufp);
@@ -444,7 +448,7 @@ int ut_rmdir(const char *file, int line, const char *func,
 int ut_rename(const char *file, int line, const char *func,
     const char *oldpath, const char *newpath);
 
-#ifndef _WIN32
+#ifdef __linux
 int ut_mount(const char *file, int line, const char *func, const char *src,
     const char *tar, const char *fstype, unsigned long flags,
     const void *data);
@@ -468,7 +472,7 @@ int ut_ftruncate(const char *file, int line, const char *func,
 int ut_chmod(const char *file, int line, const char *func,
     const char *path, mode_t mode);
 
-#ifndef _WIN32
+#ifdef __linux
 DIR *ut_opendir(const char *file, int line, const char *func, const char *name);
 
 int ut_dirfd(const char *file, int line, const char *func, DIR *dirp);
@@ -525,8 +529,12 @@ int ut_closedir(const char *file, int line, const char *func, DIR *dirp);
     ut_fcntl(__FILE__, __LINE__, __func__, fd, cmd, num, __VA_ARGS__)
 #endif
 
+#if (defined(_POSIX_ADVISORY_INFO) &&\
+	((_POSIX_ADVISORY_INFO - 200809L) >= 0L)) ||\
+	defined(_WIN32)
 #define POSIX_FALLOCATE(fd, off, len)\
     ut_posix_fallocate(__FILE__, __LINE__, __func__, fd, off, len)
+#endif
 
 #define FSTAT(fd, st_bufp)\
     ut_fstat(__FILE__, __LINE__, __func__, fd, st_bufp)
@@ -671,19 +679,28 @@ intptr_t ut_spawnv(int argc, const char **argv, ...);
  * allocator with the custom one.
  */
 #ifndef _WIN32
+
 #define _FUNC_REAL_DECL(name, ret_type, ...)\
-	ret_type __real_##name(__VA_ARGS__) __attribute__((unused));
+	ret_type (*__real_##name)(__VA_ARGS__) __attribute__((unused));
+#define _FUNC_REAL(name) __real_##name
+#define _WRAPPER_NAME(name) name
+
+#define _LOAD_REAL_ADDR(name)\
+	__real_##name = dlsym(RTLD_NEXT, STR(name));\
+	if (__real_##name == NULL) {\
+		UT_FATAL("symbol not found " STR(name));\
+	}
+
+/* _WIN32-ish */
 #else
+/* POSIX-ish */
+
 #define _FUNC_REAL_DECL(name, ret_type, ...)\
 	ret_type name(__VA_ARGS__);
-#endif
+#define _FUNC_REAL(name) name
+#define _WRAPPER_NAME(name) __wrap_##name
+#define _LOAD_REAL_ADDR(name)
 
-#ifndef _WIN32
-#define _FUNC_REAL(name)\
-	__real_##name
-#else
-#define _FUNC_REAL(name)\
-	name
 #endif
 
 #define RCOUNTER(name)\
@@ -697,6 +714,7 @@ intptr_t ut_spawnv(int argc, const char **argv, ...);
 	static unsigned RCOUNTER(name);\
 	ret_type __wrap_##name(__VA_ARGS__);\
 	ret_type __wrap_##name(__VA_ARGS__) {\
+		_LOAD_REAL_ADDR(name);\
 		switch (__sync_fetch_and_add(&RCOUNTER(name), 1)) {
 
 #define FUNC_MOCK_END\
@@ -787,8 +805,6 @@ _name(const struct test_case *tc, int argc, char *argv[])
 	.name = #_name,\
 	.func = _name,\
 }
-
-#define STR(x) #x
 
 #define ASSERT_ALIGNED_BEGIN(type) do {\
 size_t off = 0;\

@@ -49,9 +49,7 @@
 #include "rm.h"
 #include "set.h"
 
-#ifdef USE_RPMEM
 #include "librpmem.h"
-#endif
 
 enum ask_type {
 	ASK_SOMETIMES,	/* ask before removing write-protected files */
@@ -169,7 +167,6 @@ rm_file(const char *file)
 static int
 remove_remote(const char *target, const char *pool_set)
 {
-#ifdef USE_RPMEM
 	char cask = 'y';
 	switch (ask_mode) {
 	case ASK_ALWAYS:
@@ -230,10 +227,6 @@ remove_remote(const char *target, const char *pool_set)
 	}
 
 	return ret;
-#else
-	outv_err("remote replication not supported");
-	return 1;
-#endif
 }
 
 /*
@@ -301,14 +294,12 @@ rm_poolset(const char *file)
 int
 pmempool_rm_func(char *appname, int argc, char *argv[])
 {
-#ifdef USE_RPMEM
 	util_remote_init();
 	/*
 	 * Try to load librpmem, if loading failed -
 	 * assume it is not available.
 	 */
 	rpmem_avail = !util_remote_load();
-#endif
 
 	/* by default do not remove any poolset files */
 	rm_poolset_mode = RM_POOLSET_NONE;
@@ -395,9 +386,7 @@ pmempool_rm_func(char *appname, int argc, char *argv[])
 			lret = ret;
 	}
 
-#ifdef USE_RPMEM
 	util_remote_fini();
-#endif
 
 	return lret;
 }

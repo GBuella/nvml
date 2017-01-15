@@ -98,6 +98,8 @@ shared_mutex_example()
 
 namespace nvobj = nvml::obj;
 
+#if (defined(_POSIX_SPIN_LOCKS) && (_POSIX_SPIN_LOCKS - 200809L) >= 0L) || \
+	defined(_WIN32)
 void
 timed_mutex_example()
 {
@@ -120,6 +122,7 @@ timed_mutex_example()
 				     timeout);
 }
 //! [timed_mutex_example]
+#endif
 
 //! [cond_var_example]
 #include <libpmemobj++/condition_variable.hpp>

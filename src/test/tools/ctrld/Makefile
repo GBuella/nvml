@@ -41,6 +41,11 @@ CFLAGS += -I$(TOP)/src/common
 
 TARGET = ctrld
 
+ifeq ($(shell uname), Darwin)
+OBJS = ctrld.o
+EXTRA_CFLAGS += -Wno-deprecated-declarations
+else
 OBJS = ctrld.o os_linux.o
+endif
 
 include $(TOP)/src/tools/Makefile.inc

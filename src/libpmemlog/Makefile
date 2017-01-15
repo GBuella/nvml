@@ -43,7 +43,6 @@ SOURCE =\
 	$(COMMON)/os_linux.c\
 	$(COMMON)/out.c\
 	$(COMMON)/pool_hdr.c\
-	$(COMMON)/pool_hdr_linux.c\
 	$(COMMON)/set.c\
 	$(COMMON)/util.c\
 	$(COMMON)/uuid.c\
@@ -51,6 +50,12 @@ SOURCE =\
 	$(COMMON)/util_linux.c\
 	libpmemlog.c\
 	log.c
+
+ifeq ($(shell uname), Darwin)
+	SOURCE += $(COMMON)/pool_hdr_osx.c
+else
+	SOURCE += $(COMMON)/pool_hdr_linux.c
+endif
 
 include ../Makefile.inc
 

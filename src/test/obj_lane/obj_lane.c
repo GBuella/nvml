@@ -37,6 +37,8 @@
 #define _GNU_SOURCE
 #endif
 
+_GNU_SOURCE
+
 #include <pthread.h>
 #include <errno.h>
 #include <inttypes.h>

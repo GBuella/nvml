@@ -108,6 +108,9 @@ ut_unlink(const char *file, int line, const char *func, const char *path)
 	return retval;
 }
 
+#if (defined(_POSIX_ADVISORY_INFO) &&\
+	((_POSIX_ADVISORY_INFO - 200809L) >= 0L)) ||\
+	defined(WIN32)
 /*
  * ut_posix_fallocate -- a posix_fallocate that cannot return -1
  */
@@ -126,6 +129,7 @@ ut_posix_fallocate(const char *file, int line, const char *func, int fd,
 
 	return retval;
 }
+#endif
 
 /*
  * ut_access -- an access that cannot return -1
@@ -455,7 +459,7 @@ ut_rename(const char *file, int line, const char *func,
 	return retval;
 }
 
-#ifndef _WIN32
+#ifdef _linux
 /*
  * ut_mount -- a mount that cannot return -1
  */
@@ -536,7 +540,7 @@ ut_chmod(const char *file, int line, const char *func, const char *path,
 	return retval;
 }
 
-#ifndef _WIN32
+#ifdef __linux
 /*
  * ut_mknod -- a mknod that cannot return -1
  */

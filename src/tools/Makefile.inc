@@ -69,7 +69,14 @@ endif
 
 CFLAGS += $(EXTRA_CFLAGS)
 
-LDFLAGS += -Wl,-z,relro -Wl,--warn-common -Wl,--fatal-warnings $(EXTRA_LDFLAGS) -L$(TOP)/src/nondebug
+ifeq ($(IS_APPLE_LD), y)
+	LDFLAGS += -Wl,-fatal_warnings
+else
+	LDFLAGS += -Wl,-z,relro -Wl,--fatal-warnings -Wl,--warn-common
+endif
+
+LDFLAGS += $(EXTRA_LDFLAGS) -L$(TOP)/src/nondebug
+
 TARGET_DIR=$(DESTDIR)$(bindir)
 BASH_COMP_FILES ?=
 BASH_COMP_DESTDIR = $(DESTDIR)$(bashcompdir)
@@ -245,19 +252,19 @@ $(PMEMLOG_PRIV_OBJ):
 	$(MAKE) -C $(LIBSDIR) libpmemlog
 
 pmemlog_priv.o: $(PMEMLOG_PRIV_OBJ)
-	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMLOG_PRIV)) $< $@
+	$(FILTER_GLOBALS) $(addprefix -G , $(LIBPMEMLOG_PRIV)) $< $@
 
 $(PMEMOBJ_PRIV_OBJ):
 	$(MAKE) -C $(LIBSDIR) libpmemobj
 
 pmemobj_priv.o: $(PMEMOBJ_PRIV_OBJ)
-	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMOBJ_PRIV)) $< $@
+	$(FILTER_GLOBALS) $(addprefix -G , $(LIBPMEMOBJ_PRIV)) $< $@
 
 $(PMEMBLK_PRIV_OBJ):
 	$(MAKE) -C $(LIBSDIR) libpmemblk
 
 pmemblk_priv.o: $(PMEMBLK_PRIV_OBJ)
-	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMBLK_PRIV)) $< $@
+	$(FILTER_GLOBALS) $(addprefix -G , $(LIBPMEMBLK_PRIV)) $< $@
 
 objdir=.
 

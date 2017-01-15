@@ -168,6 +168,9 @@ ut_spawnv(int argc, const char **argv, ...)
 }
 #endif
 
+#ifdef MAXLOGNAME
+#undef MAXLOGNAME
+#endif
 #define MAXLOGNAME 100		/* maximum expected .log file name length */
 #define MAXPRINT 8192		/* maximum expected single print length */
 

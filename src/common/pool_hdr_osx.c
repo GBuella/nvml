@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2017, Intel Corporation
+ * Copyright 2017, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,65 +31,73 @@
  */
 
 /*
- * pool_hdr_windows.c -- pool header utilities, Windows-specific
+ * pool_hdr_osx.c -- pool header utilities, OSX-specific
  */
 
-#include <Shlwapi.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <dlfcn.h>
+#include <mach-o/loader.h>
+
 #include "elf_constants.h"
-#include "pool_hdr.h"
 #include "out.h"
-
-/*
- * arch_machine -- (internal) translate CPU arch into ELF-compatible machine id
- */
-static int
-arch_machine(WORD cpuarch)
-{
-	/* XXX: no support for other architectures yet */
-
-	switch (cpuarch) {
-		case PROCESSOR_ARCHITECTURE_AMD64:
-			return EM_X86_64;
-		case PROCESSOR_ARCHITECTURE_IA64:
-			return EM_IA_64;
-		case PROCESSOR_ARCHITECTURE_INTEL:
-			return EM_386;
-		default:
-			ASSERT(0); /* shouldn't happen */
-			return EM_NONE;
-	}
-}
-
-/*
- * arch_endianness -- (internal) determine endianness
- */
-static int
-arch_endianness(void)
-{
-	short word = (ELFDATA2MSB << 8) + ELFDATA2LSB;
-	return ((char *)&word)[0];
-}
+#include "pool_hdr.h"
 
 /*
  * util_get_arch_flags -- get architecture identification flags
+ *
+ * Translating Mach object header constants to ELF specific constants used
+ * in pool headers.
  */
 int
 util_get_arch_flags(struct arch_flags *arch_flags)
 {
-	SYSTEM_INFO si;
-	GetSystemInfo(&si);
+	Dl_info dlinfo;
 
-	arch_flags->e_machine = arch_machine(si.wProcessorArchitecture);
-#ifdef _WIN64
-	arch_flags->ei_class = ELFCLASS64;
-#else
-	/*
-	 * XXX - Just in case someone would remove the guard from platform.h
-	 * and attempt to compile NVML for 32-bit.
-	 */
-	arch_flags->ei_class = ELFCLASS32;
-#endif
-	arch_flags->ei_data = arch_endianness();
+	if (!dladdr(util_get_arch_flags, &dlinfo))
+		return -1;
+
+	if (dlinfo.dli_fbase == NULL)
+		return -1;
+
+	uint32_t magic = ((uint32_t *)(dlinfo.dli_fbase))[0];
+
+	cpu_type_t cputype;
+
+	/* BEGIN CSTYLED */
+	/* About Mach-o header specific constants see:
+	https://opensource.apple.com/source/xnu/xnu-3248.60.10/EXTERNAL_HEADERS/mach-o/loader.h.auto.html
+	*/
+	/* END CSTYLED */
+	if (magic == MH_MAGIC_64 || magic == MH_CIGAM_64) {
+		arch_flags->ei_class = ELFCLASS64;
+		cputype = ((struct mach_header_64 *)dlinfo.dli_fbase)->cputype;
+	} else if (magic == MH_MAGIC || magic == MH_CIGAM) {
+		arch_flags->ei_class = ELFCLASS32;
+		cputype = ((struct mach_header *)dlinfo.dli_fbase)->cputype;
+	} else {
+		return -1;
+	}
+
+	/* BEGIN CSTYLED */
+	/* About CPU type specific constants see:
+	https://opensource.apple.com/source/xnu/xnu-3248.60.10/osfmk/mach/machine.h.auto.html
+	*/
+	/* END CSTYLED */
+
+	if (cputype == CPU_TYPE_X86_64) {
+		arch_flags->e_machine = EM_X86_64;
+		arch_flags->ei_data = ELFDATA2LSB;
+	} else if (cputype == CPU_TYPE_X86) {
+		arch_flags->e_machine = EM_386;
+		arch_flags->ei_data = ELFDATA2LSB;
+	} else {
+		arch_flags->e_machine = EM_NONE;
+		arch_flags->ei_data = ELFDATANONE;
+	}
+
 	arch_flags->alignment_desc = alignment_desc();
 
 	return 0;

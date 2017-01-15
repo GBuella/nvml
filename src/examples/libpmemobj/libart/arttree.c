@@ -284,10 +284,17 @@ art_tree_map_init(struct datastore *ds, struct ds_context *ctx)
 		}
 
 		/* allocate the pmem */
+#if defined(_POSIX_ADVISORY_INFO) && ((_POSIX_ADVISORY_INFO - 200809L) >= 0L)
 		if ((errno = posix_fallocate(ctx->fd, 0, ctx->psize)) != 0) {
 			perror("posix_fallocate");
 			errors++;
 		}
+#else
+		if (ftruncate(ctx->fd, ctx->psize) != 0) {
+			perror("posix_fallocate");
+			errors++;
+		}
+#endif
 	}
 
 	if (!errors) {
