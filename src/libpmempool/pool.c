@@ -41,7 +41,7 @@
 #include <fcntl.h>
 #include <endian.h>
 
-#ifndef _WIN32
+#ifdef __linux
 #include <sys/ioctl.h>
 #include <linux/fs.h>
 #endif
@@ -336,7 +336,7 @@ pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 		params->is_dev_dax = set->replica[0]->part[0].is_dev_dax;
 	} else if (is_btt) {
 		params->size = (size_t)stat_buf.st_size;
-#ifndef _WIN32
+#ifdef __linux
 		if (params->mode & S_IFBLK)
 			if (ioctl(fd, BLKGETSIZE64, &params->size)) {
 				ERR("!ioctl");

@@ -1321,7 +1321,8 @@ if test "x${enable_zone_allocator}" = "x1" ; then
   AC_DEFUN([JE_ZONE_PROGRAM],
     [AC_LANG_PROGRAM(
       [#include <malloc/malloc.h>],
-      [static foo[[sizeof($1) $2 sizeof(void *) * $3 ? 1 : -1]]]
+      [static char foo[[sizeof($1) $2 sizeof(void *) * $3 ? 1 : -1]];]
+      [(void) foo;],
     )])
 
   AC_COMPILE_IFELSE([JE_ZONE_PROGRAM(malloc_zone_t,==,14)],[JEMALLOC_ZONE_VERSION=3],[

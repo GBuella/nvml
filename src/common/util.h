@@ -245,4 +245,8 @@ static
 }
 #endif
 
+#ifdef __APPLE__
+int posix_fallocate(int fd, off_t offset, off_t len);
+#endif
+
 #endif /* util.h */

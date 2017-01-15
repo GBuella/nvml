@@ -34,9 +34,11 @@
  * ctrld.c -- simple application which helps running tests on remote node.
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
 #include <errno.h>
 #include <dirent.h>
@@ -102,7 +104,6 @@ static const char *signal2str[] = {
 	SIGNAL_2_STR(SIGPIPE),
 	SIGNAL_2_STR(SIGALRM),
 	SIGNAL_2_STR(SIGTERM),
-	SIGNAL_2_STR(SIGSTKFLT),
 	SIGNAL_2_STR(SIGCHLD),
 	SIGNAL_2_STR(SIGCONT),
 	SIGNAL_2_STR(SIGSTOP),
@@ -115,8 +116,6 @@ static const char *signal2str[] = {
 	SIGNAL_2_STR(SIGVTALRM),
 	SIGNAL_2_STR(SIGPROF),
 	SIGNAL_2_STR(SIGWINCH),
-	SIGNAL_2_STR(SIGPOLL),
-	SIGNAL_2_STR(SIGPWR),
 	SIGNAL_2_STR(SIGSYS)
 };
 
@@ -604,7 +603,8 @@ err:
 static int
 convert_signal_name(const char *signal_name)
 {
-	for (int sig = SIGHUP; sig <= SIGSYS; sig++)
+	int nsig = (int)sizeof(signal2str) / sizeof(signal2str[0]);
+	for (int sig = 0; sig < nsig; sig++)
 		if (strcmp(signal_name, signal2str[sig]) == 0)
 			return sig;
 	return -1;

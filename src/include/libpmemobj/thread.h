@@ -37,6 +37,9 @@
 #ifndef LIBPMEMOBJ_THREAD_H
 #define LIBPMEMOBJ_THREAD_H 1
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 #include <time.h>
 #include <libpmemobj/base.h>
 
@@ -66,20 +69,26 @@ typedef union {
 
 void pmemobj_mutex_zero(PMEMobjpool *pop, PMEMmutex *mutexp);
 int pmemobj_mutex_lock(PMEMobjpool *pop, PMEMmutex *mutexp);
+#if (defined(_POSIX_TIMEOUTS) && (_POSIX_TIMEOUTS - 200809L) >= 0L) || \
+	defined(_WIN32)
 int pmemobj_mutex_timedlock(PMEMobjpool *pop, PMEMmutex *__restrict mutexp,
 	const struct timespec *__restrict abs_timeout);
+#endif
 int pmemobj_mutex_trylock(PMEMobjpool *pop, PMEMmutex *mutexp);
 int pmemobj_mutex_unlock(PMEMobjpool *pop, PMEMmutex *mutexp);
 
 void pmemobj_rwlock_zero(PMEMobjpool *pop, PMEMrwlock *rwlockp);
 int pmemobj_rwlock_rdlock(PMEMobjpool *pop, PMEMrwlock *rwlockp);
 int pmemobj_rwlock_wrlock(PMEMobjpool *pop, PMEMrwlock *rwlockp);
+#if (defined(_POSIX_TIMEOUTS) && (_POSIX_TIMEOUTS - 200809L) >= 0L) || \
+	defined(_WIN32)
 int pmemobj_rwlock_timedrdlock(PMEMobjpool *pop,
 	PMEMrwlock *__restrict rwlockp,
 	const struct timespec *__restrict abs_timeout);
 int pmemobj_rwlock_timedwrlock(PMEMobjpool *pop,
 	PMEMrwlock *__restrict rwlockp,
 	const struct timespec *__restrict abs_timeout);
+#endif
 int pmemobj_rwlock_tryrdlock(PMEMobjpool *pop, PMEMrwlock *rwlockp);
 int pmemobj_rwlock_trywrlock(PMEMobjpool *pop, PMEMrwlock *rwlockp);
 int pmemobj_rwlock_unlock(PMEMobjpool *pop, PMEMrwlock *rwlockp);

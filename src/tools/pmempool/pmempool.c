@@ -53,7 +53,7 @@
 #include "transform.h"
 #include "set.h"
 
-#ifndef _WIN32
+#ifdef USE_RPMEM
 #include "rpmem_common.h"
 #include "rpmem_util.h"
 #endif
@@ -256,7 +256,7 @@ main(int argc, char *argv[])
 #endif
 	util_init();
 
-#ifndef _WIN32
+#ifdef USE_RPMEM
 	util_remote_init();
 	rpmem_util_cmds_init();
 #endif
@@ -292,7 +292,7 @@ main(int argc, char *argv[])
 		outv_err("'%s' -- unknown command\n", cmd_str);
 		ret = 1;
 	}
-#ifndef _WIN32
+#ifdef USE_RPMEM
 	util_remote_fini();
 	rpmem_util_cmds_fini();
 #endif

@@ -33,26 +33,56 @@
 
 TOP := $(dir $(lastword $(MAKEFILE_LIST)))..
 
-LN = ln
-OBJCOPY = objcopy
-MKDIR = mkdir
-INSTALL = install
-CP = cp
-CSTYLE = $(TOP)/utils/cstyle
-CSTYLEON = 0
-STYLE_CHECK = $(TOP)/utils/style_check.sh
+LN ?= ln
+OBJCOPY ?= objcopy
+NMEDIT ?= nmedit
+MKDIR ?= mkdir
+INSTALL ?= install
+CP ?= cp
+CSTYLE ?= $(TOP)/utils/cstyle
+CSTYLEON ?= 0
+STYLE_CHECK ?= $(TOP)/utils/style_check.sh
 CHECK_OS = $(TOP)/utils/check-os.sh
 OS_H = $(TOP)/src/common/os.h
 
-PKG_CONFIG = pkg-config
+PKG_CONFIG ?= pkg-config
 CLANG_FORMAT ?= clang-format
 HEADERS = $(wildcard *.h) $(wildcard *.hpp)
 
-ifeq ($(shell command -v $(PKG_CONFIG) && echo y || echo n), n)
-$(error $(PKG_CONFIG) not found)
+ifeq ($(shell uname), Darwin)
+	CFLAGS += -I$(TOP)/src/darwin/include
 endif
 
+IS_APPLE_LD = $(shell $(LD) -v 2>&1 | grep Apple > /dev/null && echo y || echo n)
+
+ifeq ($(IS_APPLE_LD), y)
+	SLIB_EXT = dylib
+	SLIB_LD_FLAG = -dylib
+	SLIB_NAME_LD_FLAG = -install_name
+else
+	SLIB_EXT = so
+	SLIB_LD_FLAG = -shared
+	SLIB_NAME_LD_FLAG = -soname
+endif
+
+ifeq ($(shell command -v $(OBJCOPY) >> /dev/null && echo y || echo n), y)
+	FILTER_GLOBALS=$(OBJCOPY) --localize-hidden
+else ifeq ($(shell command -v $(NMEDIT) >> /dev/null && echo y || echo n), y)
+	FILTER_GLOBALS=$(TOP)/utils/nmedit_dash_g.sh $(NMEDIT)
+else
+$(error neither objcopy nor nmedit found)
+endif
+
+ifeq ($(shell command -v $(PKG_CONFIG) && echo y || echo n), n)
+$(error $(PKG_CONFIG) not found)
+check_package = $(echo n)
+else
+ifeq ($(shell $(PKG_CONFIG) nonexistingpackage && echo y || echo n), n)
 check_package = $(shell $(PKG_CONFIG) $(1) && echo y || echo n)
+else
+check_package = $(echo n)
+endif
+endif
 
 check_flag = $(shell echo "int main(){return 0;}" |\
 	$(CC) $(CFLAGS) $(1) -x c -o /dev/null - 2>/dev/null && echo y || echo n)

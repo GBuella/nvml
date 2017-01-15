@@ -46,6 +46,7 @@
 #include <assert.h>
 #include <sys/param.h>
 #define __USE_UNIX98
+__USE_UNIX98
 #include <unistd.h>
 #include <sys/mman.h>
 

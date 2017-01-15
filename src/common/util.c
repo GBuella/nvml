@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <endian.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include "util.h"
 #include "valgrind_internal.h"
@@ -269,3 +270,39 @@ util_concat_str(const char *s1, const char *s2)
 
 	return result;
 }
+
+#ifdef __APPLE__
+
+int
+posix_fallocate(int fd, off_t offset, off_t len)
+{
+	if (offset < 0 || len <= 0)
+		return EINVAL;
+
+	if (offset + len < offset)
+		return EFBIG;
+
+	int orig_errno = errno;
+
+	fstore_t store = {
+	    .fst_flags = F_ALLOCATEALL,
+	    .fst_posmode = F_PEOFPOSMODE,
+	    .fst_offset = offset,
+	    .fst_length = len};
+
+	int r = fcntl(fd, F_PREALLOCATE, &store);
+
+	if (r < 0)
+		r = errno;
+
+	errno = orig_errno;
+	/*
+	 * The posix_fallocate function does not set errno, while
+	 * both fcntl and ftruncate do. A failure is indicated with a
+	 * returned error code by posix_fallocate.
+	 */
+
+	return r;
+}
+
+#endif

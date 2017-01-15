@@ -1,4 +1,5 @@
 *.so
+*.dylib
 *.so.*
 *.a
 *.pc

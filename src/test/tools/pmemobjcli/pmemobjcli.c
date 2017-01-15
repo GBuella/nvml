@@ -754,7 +754,7 @@ pocli_str_root_print(struct pocli_ctx *ctx, struct pocli_args *args)
 	if (ret)
 		return ret;
 
-	size_t len = 0;
+	uint64_t len = 0;
 	ret = pocli_args_number(args, 2, &len);
 	if (ret)
 		return ret;

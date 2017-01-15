@@ -135,6 +135,9 @@ public:
 					 "Failed to lock a mutex.");
 	}
 
+#if (defined(_POSIX_SPIN_LOCKS) && (_POSIX_SPIN_LOCKS - 200809L) >= 0L) || \
+	defined(_WIN32)
+
 	/**
 	 * Makes the current thread block until the lock is acquired or a
 	 * specific time is reached.
@@ -159,6 +162,7 @@ public:
 	{
 		return timedlock_impl(timeout_time);
 	}
+#endif
 
 	/**
 	 * Makes the current thread block until the lock is acquired or a
@@ -226,6 +230,9 @@ public:
 	timed_mutex(const timed_mutex &) = delete;
 
 private:
+
+#if (defined(_POSIX_SPIN_LOCKS) && (_POSIX_SPIN_LOCKS - 200809L) >= 0L) || \
+	defined(_WIN32)
 	/**
 	 * Internal implementation of the timed lock call.
 	 */
@@ -253,6 +260,7 @@ private:
 			throw lock_error(ret, std::system_category(),
 					 "Failed to lock a mutex");
 	}
+#endif
 
 	/** A POSIX style PMEM-resident timed_mutex.*/
 	PMEMmutex plock;

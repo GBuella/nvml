@@ -79,7 +79,14 @@ endif
 
 CFLAGS += $(EXTRA_CFLAGS)
 
-LDFLAGS += -Wl,-z,relro -Wl,--fatal-warnings -Wl,--warn-common $(EXTRA_LDFLAGS)
+ifeq ($(IS_APPLE_LD), y)
+	LDFLAGS += -Wl,-fatal_warnings
+else
+	LDFLAGS += -Wl,-z,relro -Wl,--fatal-warnings -Wl,--warn-common
+endif
+
+
+LDFLAGS += $(EXTRA_LDFLAGS)
 
 ifneq ($(NORPATH),1)
 LDFLAGS += -Wl,-rpath=$(libdir)$(LIB_SUBDIR)
@@ -148,8 +155,8 @@ endif
 
 ifneq ($(LIBRARY_SO_VERSION),)
 LIB_MAP = $(LIB_NAME).map
-LIB_SONAME = $(LIB_NAME).so.$(LIBRARY_SO_VERSION)
-LIB_SO = $(LIB_OUTDIR)/$(LIB_NAME).so
+LIB_SONAME = $(LIB_NAME).$(SLIB_EXT).$(LIBRARY_SO_VERSION)
+LIB_SO = $(LIB_OUTDIR)/$(LIB_NAME).$(SLIB_EXT)
 
 LIB_SO_SONAME = $(LIB_SO).$(LIBRARY_SO_VERSION)
 
@@ -193,8 +200,14 @@ all: $(objdir) $(LIB_OUTDIR) $(EXTRA_TARGETS) $(LIB_AR) $(LIB_SO_SONAME) $(LIB_S
 $(objdir) $(LIB_OUTDIR):
 	$(MKDIR) -p $@
 
+ifeq ($(IS_APPLE_LD), y)
+LIB_SO_REAL_LD_FLAGS = -Wl,-current_version -Wl,1.2
+else
+LIB_SO_REAL_LD_FLAGS = -Wl,--version-script=$(LIB_MAP),-soname,$(LIB_SONAME)
+endif
+
 $(LIB_SO_REAL): $(OBJS) $(EXTRA_OBJS) $(LIB_MAP) $(MAKEFILE_DEPS)
-	$(CC) $(LDFLAGS) -shared -Wl,--version-script=$(LIB_MAP),-soname,$(LIB_SONAME) -o $@ $(OBJS) $(EXTRA_OBJS) $(LIBS)
+	$(CC) $(LDFLAGS) -shared $(LIB_SO_REAL_LD_FLAGS) -o $@ $(OBJS) $(EXTRA_OBJS) $(LIBS)
 
 $(LIB_SO_SONAME): $(LIB_SO_REAL) $(MAKEFILE_DEPS)
 	$(LN) -sf $(shell basename $<) $@
@@ -207,10 +220,10 @@ $(LIB_AR_UNSCOPED): $(OBJS) $(EXTRA_OBJS) $(MAKEFILE_DEPS)
 
 ifeq ($(LIB_MAP),)
 $(LIB_AR_ALL): $(LIB_AR_UNSCOPED) $(MAKEFILE_DEPS)
-	$(OBJCOPY) $< $@
+	$(CP) $< $@
 else
 $(LIB_AR_ALL): $(LIB_AR_UNSCOPED) $(LIB_MAP) $(MAKEFILE_DEPS)
-	$(OBJCOPY) --localize-hidden `sed -n 's/^	*\([a-zA-Z0-9_]*\);$$/-G \1/p' $(LIB_MAP)` $< $@
+	$(FILTER_GLOBALS) `sed -n 's/^[[:space:]]*\([a-zA-Z0-9_]*\);$$/-G \1/p' $(LIB_MAP)` $< $@
 endif
 
 $(LIB_AR): $(LIB_AR_ALL) $(MAKEFILE_DEPS)

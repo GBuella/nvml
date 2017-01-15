@@ -38,6 +38,8 @@
 #define _GNU_SOURCE
 #endif
 
+_GNU_SOURCE
+
 #include <inttypes.h>
 #include <errno.h>
 #include <limits.h>

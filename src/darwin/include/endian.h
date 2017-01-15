@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2017, Intel Corporation
+ * Copyright 2017, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,67 +30,25 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * pool_hdr_windows.c -- pool header utilities, Windows-specific
- */
+#ifndef ENDIAN_H
+#define ENDIAN_H
 
-#include <Shlwapi.h>
-#include "elf_constants.h"
-#include "pool_hdr.h"
-#include "out.h"
+#include <machine/endian.h>
+#include <libkern/OSByteOrder.h>
 
-/*
- * arch_machine -- (internal) translate CPU arch into ELF-compatible machine id
- */
-static int
-arch_machine(WORD cpuarch)
-{
-	/* XXX: no support for other architectures yet */
+#define htobe16(x) OSSwapHostToBigInt16(x)
+#define htole16(x) OSSwapHostToLittleInt16(x)
+#define be16toh(x) OSSwapBigToHostInt16(x)
+#define le16toh(x) OSSwapLittleToHostInt16(x)
 
-	switch (cpuarch) {
-		case PROCESSOR_ARCHITECTURE_AMD64:
-			return EM_X86_64;
-		case PROCESSOR_ARCHITECTURE_IA64:
-			return EM_IA_64;
-		case PROCESSOR_ARCHITECTURE_INTEL:
-			return EM_386;
-		default:
-			ASSERT(0); /* shouldn't happen */
-			return EM_NONE;
-	}
-}
+#define htobe32(x) OSSwapHostToBigInt32(x)
+#define htole32(x) OSSwapHostToLittleInt32(x)
+#define be32toh(x) OSSwapBigToHostInt32(x)
+#define le32toh(x) OSSwapLittleToHostInt32(x)
 
-/*
- * arch_endianness -- (internal) determine endianness
- */
-static int
-arch_endianness(void)
-{
-	short word = (ELFDATA2MSB << 8) + ELFDATA2LSB;
-	return ((char *)&word)[0];
-}
+#define htobe64(x) OSSwapHostToBigInt64(x)
+#define htole64(x) OSSwapHostToLittleInt64(x)
+#define be64toh(x) OSSwapBigToHostInt64(x)
+#define le64toh(x) OSSwapLittleToHostInt64(x)
 
-/*
- * util_get_arch_flags -- get architecture identification flags
- */
-int
-util_get_arch_flags(struct arch_flags *arch_flags)
-{
-	SYSTEM_INFO si;
-	GetSystemInfo(&si);
-
-	arch_flags->e_machine = arch_machine(si.wProcessorArchitecture);
-#ifdef _WIN64
-	arch_flags->ei_class = ELFCLASS64;
-#else
-	/*
-	 * XXX - Just in case someone would remove the guard from platform.h
-	 * and attempt to compile NVML for 32-bit.
-	 */
-	arch_flags->ei_class = ELFCLASS32;
-#endif
-	arch_flags->ei_data = arch_endianness();
-	arch_flags->alignment_desc = alignment_desc();
-
-	return 0;
-}
+#endif /* !ENDIAN_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016, Intel Corporation
+ * Copyright 2014-2017, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,8 +53,14 @@ extern "C" {
 #define VMMALLOC_MIN_POOL ((size_t)(1024 * 1024 * 14)) /* min pool size: 14MB */
 
 #define VMMALLOC_OVERRIDE_ALIGNED_ALLOC
+
+#if (_XOPEN_SOURCE >= 500) && !(_POSIX_C_SOURCE >= 200112L)
 #define VMMALLOC_OVERRIDE_VALLOC
+#endif
+
+#ifdef __linux
 #define VMMALLOC_OVERRIDE_MEMALIGN
+#endif
 
 /*
  * check compiler support for various function attributes

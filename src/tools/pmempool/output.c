@@ -42,7 +42,7 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <err.h>
-#include <elf.h>
+#include "elf_constants.h"
 #include <endian.h>
 #include <inttypes.h>
 #include "common.h"

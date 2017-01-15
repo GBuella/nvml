@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Intel Corporation
+ * Copyright 2016-2017, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,6 +37,7 @@
 #define EX_COMMON_H
 
 #include <stdint.h>
+#include <strings.h>
 
 #define MIN(a, b)  (((a) < (b)) ? (a) : (b))
 
@@ -59,6 +60,9 @@ file_exists(char const *file)
 	return access(file, F_OK);
 }
 
+#if defined(__DARWIN_C_LEVEL) && __DARWIN_C_LEVEL >= __DARWIN_C_FULL
+/* fls is defined in strings.h as a Darwin extension on OSX */
+#else
 /*
  * fls -- returns last set bit position or -1 if set bit not found
  */
@@ -67,6 +71,8 @@ fls(uint64_t val)
 {
 	return 64 - __builtin_clzll(val) - 1;
 }
+#endif /* !__DARWIN_C_LEVEL */
+
 #else
 
 #include <windows.h>

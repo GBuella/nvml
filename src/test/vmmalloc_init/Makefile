@@ -38,15 +38,15 @@ OBJS = vmmalloc_init.o
 
 include ../Makefile.inc
 
-all: libtest.so
+all: libtest.$(SLIB_EXT)
 
-libtest.so: libtest.c
-	$(CC) $(CFLAGS) -fPIC -shared -Wl,-soname,libtest.so -o $@ $^
+libtest.$(SLIB_EXT): libtest.c
+	$(CC) $(CFLAGS) -fPIC -shared -Wl,$(SLIB_NAME_LD_FLAG),libtest.$(SLIB_EXT) -o $@ $^
 
 clobber: libtest_clean
 
 libtest_clean:
-	$(RM) libtest.so
+	$(RM) libtest.$(SLIB_EXT)
 
 LIBS += -ldl
 CFLAGS += -Wno-deprecated-declarations

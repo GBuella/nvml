@@ -40,6 +40,12 @@ vpath %.c $(TOP)/src/libpmemobj
 TARGET = obj_sync
 OBJS = obj_sync.o sync.o
 
+# XXX this doesn't depend on the linker, but the libc implementation
+# XXX introduce IS_GNULIBC make variable?
+ifeq ($(IS_APPLE_LD), n)
+LIBS = -lrt
+endif
+
 LIBPMEMCOMMON=y
 LIBPMEM=y
 

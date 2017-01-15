@@ -41,12 +41,17 @@ SOURCE =\
 	os_linux.c\
 	out.c\
 	pool_hdr.c\
-	pool_hdr_linux.c\
 	set.c\
 	util.c\
 	uuid.c\
 	uuid_linux.c\
 	util_linux.c
+
+ifeq ($(shell uname), Darwin)
+	SOURCE += pool_hdr_osx.c
+else
+	SOURCE += pool_hdr_linux.c
+endif
 
 include ../Makefile.inc
 

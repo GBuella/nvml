@@ -44,9 +44,12 @@
 
 #define DATA_SIZE 128
 
+#if (defined(_POSIX_TIMEOUTS) && (_POSIX_TIMEOUTS - 200809L) >= 0L) || \
+	defined(_WIN32)
 #define LOCKED_MUTEX 1
 #define NANO_PER_ONE 1000000000LL
 #define TIMEOUT (NANO_PER_ONE / 1000LL)
+#endif
 #define WORKER_RUNS 10
 #define MAX_OPENS 5
 
@@ -249,6 +252,8 @@ rwlock_check_worker(void *arg)
 	return NULL;
 }
 
+#if (defined(_POSIX_TIMEOUTS) && (_POSIX_TIMEOUTS - 200809L) >= 0L) || \
+	defined(_WIN32)
 /*
  * timed_write_worker -- (internal) intentionally doing nothing
  */
@@ -319,6 +324,13 @@ timed_check_worker(void *arg)
 
 	return NULL;
 }
+
+#else
+
+static void *timed_write_worker;
+static void *timed_check_worker;
+
+#endif
 
 /*
  * cleanup -- (internal) clean up after each run
@@ -393,6 +405,9 @@ main(int argc, char *argv[])
 			FATAL_USAGE();
 
 	}
+
+	if (writer == NULL)
+		return 0;
 
 	unsigned long num_threads = strtoul(argv[2], NULL, 10);
 	if (num_threads > MAX_THREAD_NUM)

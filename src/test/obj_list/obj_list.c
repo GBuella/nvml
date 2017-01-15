@@ -75,6 +75,10 @@ TOID(struct oob_list) List_oob_sec;
 
 TOID(struct oob_item) *Item;
 
+#ifdef LIST_FOREACH
+#undef LIST_FOREACH
+#endif
+
 /*
  * for each element on list in normal order
  */

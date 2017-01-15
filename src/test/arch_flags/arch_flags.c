@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016, Intel Corporation
+ * Copyright 2015-2017, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +34,7 @@
  * arch_flags.c -- unit test for architecture flags
  */
 #include <string.h>
-#include <elf.h>
+#include "elf_constants.h"
 #include <link.h>
 
 #include "unittest.h"
