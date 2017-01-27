@@ -563,18 +563,21 @@ inode_free(PMEMfilepool *pfp, TOID(struct pmemfile_inode) tinode)
 		}
 	} else if (inode_is_regular_file(inode)) {
 		struct pmemfile_block_array *arr = &inode->file_data.blocks;
-		TOID(struct pmemfile_block_array) tarr =
-				TOID_NULL(struct pmemfile_block_array);
+		struct pmemfile_block_array *prev = NULL;
 
 		while (arr != NULL) {
 			for (unsigned i = 0; i < arr->length; ++i)
-				TX_FREE(arr->blocks[i].data);
+				if (arr->blocks[i].data != 0)
+					TX_FREE((TOID(char))pmemobj_oid(
+					    auto_offset(&arr->blocks[i].data)));
 
-			TOID(struct pmemfile_block_array) next = arr->next;
-			if (!TOID_IS_NULL(tarr))
-				TX_FREE(tarr);
-			tarr = next;
-			arr = D_RW(tarr);
+			struct pmemfile_block_array *next = auto_offset(&arr->next);
+			if (prev != NULL)
+				TX_FREE((TOID(struct pmemfile_block_array))
+				    pmemobj_oid(arr));
+
+			prev = arr;
+			arr = next;
 		}
 	} else if (inode_is_symlink(inode)) {
 		/* nothing to be done */
@@ -624,7 +627,7 @@ vinode_stat(struct pmemfile_vinode *vinode, struct stat *buf)
 		while (arr) {
 			for (uint32_t i = 0; i < arr->length; ++i)
 				sz += arr->blocks[i].size;
-			arr = D_RO(arr->next);
+			arr = auto_offset(&arr->next);
 		}
 
 		/*

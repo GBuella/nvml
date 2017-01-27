@@ -80,7 +80,7 @@ vinode_rebuild_block_tree(struct pmemfile_vinode *vinode)
 			block_cache_insert_block(c, block);
 		}
 
-		block_array = D_RW(block_array->next);
+		block_array = auto_offset(&block_array->next);
 	}
 
 	vinode->blocks = c;
@@ -126,7 +126,7 @@ find_block(struct pmemfile_file *file, uint64_t offset)
 static bool
 is_last_block(struct pmemfile_block *block)
 {
-	return TOID_IS_NULL(block->next);
+	return block->next == 0;
 }
 
 /*
@@ -201,15 +201,16 @@ file_allocate_block_data(PMEMfilepool *pfp,
 
 	/* XXX, snapshot separated to let pmemobj use small object cache  */
 	pmemobj_tx_add_range_direct(block, 32);
-	pmemobj_tx_add_range_direct((char *)block + 32, 16);
+	pmemobj_tx_add_range_direct(((char *)block) + 32, 16);
 	COMPILE_ERROR_ON(sizeof(*block) != 48);
 
-	block->data = TX_XALLOC(char, sz, POBJ_XALLOC_NO_FLUSH);
-	sz = pmemobj_alloc_usable_size(block->data.oid);
+	TOID(char) d = TX_XALLOC(char, sz, POBJ_XALLOC_NO_FLUSH);
+	set_auto_offset(&block->data, D_RW(d));
+	sz = pmemobj_alloc_usable_size(d.oid);
 
 #ifdef DEBUG
 	/* poison block data */
-	void *data = D_RW(block->data);
+	void *data = D_RW(d);
 	VALGRIND_ADD_TO_TX(data, sz);
 	pmemobj_memset_persist(pfp->pop, data, 0x66, sz);
 	VALGRIND_REMOVE_FROM_TX(data, sz);
@@ -242,7 +243,7 @@ get_free_block(struct pmemfile_vinode *vinode)
 		}
 
 		prev = binfo->arr;
-		binfo->arr = D_RW(binfo->arr->next);
+		binfo->arr = auto_offset(&binfo->arr->next);
 		binfo->idx = 0;
 	}
 
@@ -253,7 +254,8 @@ get_free_block(struct pmemfile_vinode *vinode)
 			sizeof(struct pmemfile_block_array)) /
 			sizeof(struct pmemfile_block));
 	ASSERT(prev != NULL);
-	TX_SET_DIRECT(prev, next, next);
+	pmemobj_tx_add_range_direct(&prev->next, sizeof(prev->next));
+	set_auto_offset(&prev->next, D_RW(next));
 
 	binfo->arr = D_RW(next);
 	binfo->idx = 0;
@@ -362,9 +364,7 @@ expand_file(PMEMfilepool *pfp, PMEMfile *file, struct pmemfile_inode *inode,
 		 * already was such a chain.
 		 */
 		if (last_block != NULL)
-			last_block->next =
-			    (TOID(struct pmemfile_block))
-			    pmemobj_oid(next_block);
+			set_auto_offset(&last_block->next, next_block);
 
 		uint64_t available = inode->size + next_block->size;
 		if (available > new_size)
@@ -390,7 +390,7 @@ expand_file(PMEMfilepool *pfp, PMEMfile *file, struct pmemfile_inode *inode,
 	 * Close the linked list of blocks -- the loop did not initialize
 	 * the next field of the last block in the last iteration.
 	 */
-	last_block->next = TOID_NULL(struct pmemfile_block);
+	last_block->next = 0;
 }
 
 static inline void
@@ -411,7 +411,7 @@ iterate_on_file_range(PMEMfilepool *pfp, PMEMfile *file,
 
 	uint64_t range_offset = 0;
 
-	for (; len > 0; block = D_RW(block->next)) {
+	for (; len > 0; block = auto_offset(&block->next)) {
 		/* Remember the pointer to block used last time */
 		file->block_pointer_cache = block;
 
@@ -451,7 +451,7 @@ iterate_on_file_range(PMEMfilepool *pfp, PMEMfile *file,
 		ASSERT(in_block_start < block->size);
 		ASSERT(in_block_start + in_block_len <= block->size);
 
-		char *data = D_RW(block->data) + in_block_start;
+		char *data = (char *)auto_offset(&block->data) + in_block_start;
 
 		if (callback(pfp, arg, data, range_offset, in_block_len) != 0)
 			return;
@@ -896,12 +896,15 @@ vinode_truncate(struct pmemfile_vinode *vinode)
 {
 	struct pmemfile_block_array *arr =
 			&D_RW(vinode->inode)->file_data.blocks;
-	TOID(struct pmemfile_block_array) tarr = arr->next;
+
+	struct pmemfile_block_array *next = auto_offset(&arr->next);
 
 	TX_MEMSET(&arr->next, 0, sizeof(arr->next));
 	for (uint32_t i = 0; i < arr->length; ++i) {
 		if (arr->blocks[i].size > 0) {
-			TX_FREE(arr->blocks[i].data);
+			if (arr->blocks[i].data != 0)
+				TX_FREE((TOID(char))pmemobj_oid(
+				    auto_offset(&arr->blocks[i].data)));
 			continue;
 		}
 
@@ -909,15 +912,16 @@ vinode_truncate(struct pmemfile_vinode *vinode)
 		break;
 	}
 
-	arr = D_RW(tarr);
+	arr = next;
 	while (arr != NULL) {
 		for (uint32_t i = 0; i < arr->length; ++i)
-			TX_FREE(arr->blocks[i].data);
+			if (arr->blocks[i].data != 0)
+				TX_FREE((TOID(char))pmemobj_oid(
+				    auto_offset(&arr->blocks[i].data)));
 
-		TOID(struct pmemfile_block_array) next = arr->next;
-		TX_FREE(tarr);
-		tarr = next;
-		arr = D_RW(tarr);
+		next = auto_offset(&arr->next);
+		TX_FREE((TOID(struct pmemfile_block_array))pmemobj_oid(arr));
+		arr = next;
 	}
 
 	struct pmemfile_inode *inode = D_RW(vinode->inode);

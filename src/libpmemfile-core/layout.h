@@ -49,22 +49,41 @@ POBJ_LAYOUT_TOID(pmemfile, struct pmemfile_inode_array);
 POBJ_LAYOUT_TOID(pmemfile, char);
 POBJ_LAYOUT_END(pmemfile);
 
+static inline void *
+auto_offset(const ptrdiff_t *offset)
+{
+	if (*offset == 0)
+		return NULL;
+	else
+		return ((char *)offset) + *offset;
+}
+
+static inline void
+set_auto_offset(ptrdiff_t *offset, const void *target)
+{
+	if (target == NULL)
+		*offset = 0;
+	else
+		*offset = ((char *)target) - (char *)offset;
+}
+
 struct pmemfile_block {
-	TOID(char) data;
+	ptrdiff_t data;
 	uint32_t size;
 	uint32_t flags;
 	uint64_t offset;
-	TOID(struct pmemfile_block) next;
+	ptrdiff_t next;
+	char padding[16]; /* so exisiting tests pass */
 };
 
 /* File */
 struct pmemfile_block_array {
-	TOID(struct pmemfile_block_array) next;
+	ptrdiff_t next;
 
 	/* size of the blocks array */
 	uint32_t length;
 
-	uint32_t padding;
+	char padding[16]; /* so exisiting tests pass */
 
 	struct pmemfile_block blocks[];
 };
