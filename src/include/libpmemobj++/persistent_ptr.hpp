@@ -108,7 +108,7 @@ public:
 	 * Explicit void specialization of the converting costructor.
 	 */
 	explicit persistent_ptr(persistent_ptr<void> const &rhs) noexcept
-		: detail::persistent_ptr_base<T>(rhs.raw())
+	    : detail::persistent_ptr_base<T>(rhs.raw())
 	{
 	}
 
@@ -116,7 +116,7 @@ public:
 	 * Explicit const void specialization of the converting costructor.
 	 */
 	explicit persistent_ptr(persistent_ptr<const void> const &rhs) noexcept
-		: detail::persistent_ptr_base<T>(rhs.raw())
+	    : detail::persistent_ptr_base<T>(rhs.raw())
 	{
 	}
 

@@ -122,7 +122,7 @@ public:
 			  std::is_same<typename std::remove_cv<T>::type,
 				       U>::value>::type>
 	persistent_ptr_base(persistent_ptr_base<U> const &r) noexcept
-		: oid(r.oid)
+	    : oid(r.oid)
 	{
 		verify_type();
 	}
@@ -141,7 +141,7 @@ public:
 				!std::is_void<U>::value,
 			decltype(static_cast<T *>(std::declval<U *>()))>::type>
 	persistent_ptr_base(persistent_ptr_base<U> const &r) noexcept
-		: oid(r.oid)
+	    : oid(r.oid)
 	{
 		verify_type();
 	}
@@ -178,7 +178,7 @@ public:
 	 * Defaulted move constructor.
 	 */
 	persistent_ptr_base(persistent_ptr_base &&r) noexcept
-		: oid(std::move(r.oid))
+	    : oid(std::move(r.oid))
 	{
 		verify_type();
 	}
