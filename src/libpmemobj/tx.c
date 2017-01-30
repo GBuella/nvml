@@ -1973,6 +1973,45 @@ pmemobj_tx_free(PMEMoid oid)
 }
 
 /*
+ * pmemobj_tx_free_direct -- frees an existing object
+ */
+int
+pmemobj_tx_free_direct(PMEMobjpool *pop, void *addr)
+{
+	LOG(3, NULL);
+
+	ASSERT_IN_TX();
+	ASSERT_TX_STAGE_WORK();
+
+	if (addr == NULL)
+		return 0;
+
+	struct lane_tx_runtime *lane =
+		(struct lane_tx_runtime *)tx.section->runtime;
+
+	if (lane->pop->uuid_lo != pop->uuid_lo) {
+		ERR("invalid pool uuid");
+		return obj_tx_abort_err(EINVAL);
+	}
+
+	ASSERT((uintptr_t)addr >= pop->uuid_lo + pop->heap_offset);
+	ASSERT(
+	    (uintptr_t)addr < pop->uuid_lo + pop->heap_offset + pop->heap_size);
+
+	uintptr_t off = (uintptr_t)addr - (uintptr_t)addr;
+
+	uint64_t *entry = pvector_push_back(lane->undo.ctx[UNDO_FREE]);
+	if (entry == NULL) {
+		ERR("free undo log too large");
+		return obj_tx_abort_err(ENOMEM);
+	}
+	*entry = off;
+	pmemops_persist(&pop->p_ops, entry, sizeof(*entry));
+
+	return 0;
+}
+
+/*
  * lane_transaction_construct_rt -- construct runtime part of transaction
  * section
  */

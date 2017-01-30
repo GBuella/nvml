@@ -292,6 +292,8 @@ PMEMoid pmemobj_tx_strdup(const char *s, uint64_t type_num);
  */
 int pmemobj_tx_free(PMEMoid oid);
 
+int pmemobj_tx_free_direct(PMEMobjpool *pop, void *addr);
+
 #ifdef __cplusplus
 }
 #endif
