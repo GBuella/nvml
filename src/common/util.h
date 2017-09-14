@@ -48,7 +48,7 @@ extern "C" {
 #include <ctype.h>
 
 #ifdef _MSC_VER
-#include <intrin.h> /* popcnt */
+#include <intrin.h> /* popcnt, bitscan */
 #endif
 
 #include <sys/param.h>
@@ -145,15 +145,44 @@ util_clrbit(uint8_t *b, uint32_t i)
 #define util_flag_isclr(a, f) (((a) & (f)) == 0)
 
 /*
- * util_compare_and_swap -- perform an atomic compare and swap
+ * util_bool_compare_and_swap -- perform an atomic compare and swap
+ * util_fetch_and_* -- perform an operation atomically, return old value
+ * util_synchronize -- issue a full memory barrier
+ * util_popcount -- count number of set bits
+ * util_lsb_index -- return index of least significant set bit,
+ *		i.e.: value == (1 << util_lsb_index(value)), undefined on zero
+ * util_msb_index -- return index of most significant set bit, undefined on zero
+ *		i.e.: value == (1 << (WIDTH - util_msb_index(value)))
+ *
+ * XXX assertions needed on (value != 0) in both versions of bitscans
+ *
  */
 #ifndef _MSC_VER
+/*
+ * https://gcc.gnu.org/onlinedocs/gcc/_005f_005fsync-Builtins.html
+ * https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
+ * https://clang.llvm.org/docs/LanguageExtensions.html#builtin-functions
+ */
 #define util_bool_compare_and_swap32 __sync_bool_compare_and_swap
 #define util_bool_compare_and_swap64 __sync_bool_compare_and_swap
 #define util_fetch_and_add(ptr, value) __sync_fetch_and_add((ptr), value)
 #define util_fetch_and_sub(ptr, value) __sync_fetch_and_sub((ptr), value)
-#define util_popcount(value) __builtin_popcount(value)
+#define util_fetch_and_and(ptr, value) __sync_fetch_and_and((ptr), value)
+#define util_fetch_and_or(ptr, value) __sync_fetch_and_or((ptr), value)
+#define util_synchronize __sync_synchronize
+#define util_popcount(value) ((unsigned char)__builtin_popcount(value))
+#define util_popcount64(value) ((unsigned char)__builtin_popcountll(value))
+#define util_lsb_index(value) ((unsigned char)__builtin_ctz(value))
+#define util_lsb_index64(value) ((unsigned char)__builtin_ctzll(value))
+#define util_msb_index(value) ((unsigned char)(31 - __builtin_clz(value)))
+#define util_msb_index64(value) ((unsigned char)(63 - __builtin_clzll(value)))
+
 #else
+
+/*
+ * https://msdn.microsoft.com/en-us/library/hh977022.aspx
+ */
+
 static __inline int
 __sync_bool_compare_and_swap32(volatile LONG *ptr,
 		LONG oldval, LONG newval)
@@ -188,7 +217,65 @@ util_sync_fetch_and_add64(volatile LONGLONG *ptr, LONGLONG value)
 #define util_fetch_and_sub(ptr, value)\
 	util_sync_fetch_and_add64((LONGLONG *)(ptr), (LONGLONG)((-1) * value))
 
-#define util_popcount(value) __popcnt(value)
+static __inline LONGLONG
+__sync_fetch_and_and64(volatile LONGLONG *ptr, LONGLONG value)
+{
+	return InterlockedAnd64(ptr, value);
+}
+
+static __inline LONGLONG
+__sync_fetch_and_or64(volatile LONGLONG *ptr, LONGLONG value)
+{
+	return InterlockedOr64(ptr, value);
+}
+
+#define util_fetch_and_and(ptr, value)\
+	__sync_fetch_and_and64((LONGLONG *)(ptr), (LONGLONG)(value))
+
+#define util_fetch_and_or(ptr, value)\
+	__sync_fetch_and_or64((LONGLONG *)(ptr), (LONGLONG)(value))
+
+static __inline void
+util_synchronize(void)
+{
+	MemoryBarrier();
+}
+
+#define util_popcount(value) ((unsigned char)__popcnt(value))
+#define util_popcount64(value) ((unsigned char)__popcnt64(value))
+
+static __inline unsigned char
+util_lsb_index(int value)
+{
+	unsigned long ret;
+	_BitScanForward(&ret, value);
+	return (unsigned char)ret;
+}
+
+static __inline unsigned char
+util_lsb_index64(long long value)
+{
+	unsigned long ret;
+	_BitScanForward64(&ret, value);
+	return (unsigned char)ret;
+}
+
+static __inline unsigned char
+util_msb_index(int value)
+{
+	unsigned long ret;
+	_BitScanReverse(&ret, value);
+	return (unsigned char)ret;
+}
+
+static __inline unsigned char
+util_msb_index64(long long value)
+{
+	unsigned long ret;
+	_BitScanReverse64(&ret, value);
+	return (unsigned char)ret;
+}
+
 #endif
 
 /*
