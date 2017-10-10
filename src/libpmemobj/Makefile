@@ -56,6 +56,7 @@ SOURCE +=\
 	obj.c\
 	palloc.c\
 	pmalloc.c\
+	pool_ht.c\
 	pvector.c\
 	recycler.c\
 	redo.c\
