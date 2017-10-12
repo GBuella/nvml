@@ -43,6 +43,10 @@ export RPMEM_DISABLE_LIBIBVERBS=y
 
 # Build all and run tests
 cd $WORKDIR
+echo "gcc --version"
+gcc --version
+echo "clang --version"
+clang --version
 make check-license
 make cstyle
 make -j2 USE_LIBUNWIND=1
