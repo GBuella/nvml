@@ -62,7 +62,7 @@ AREAS="pmem\|rpmem\|log\|blk\|obj\|pool\|test\|benchmark\|examples\|vmem\|vmmall
 for commit in $commits; do
 	subject=$(git log --format="%s" -n 1 $commit)
 	subject_len=$(echo $subject | wc -m)
-	body_len=$(git log --format="%b" -n 1 $commit | wc -L)
+	body_len=$(git log --format="%b" -n 1 $commit | sed '/```/,/```$/d' | wc -L)
 	prefix=$(echo $subject | sed -n "s/^\($AREAS\)\:.*/\1/p")
 
 	if [[ $subject =~ ^Merge.* ]]; then
