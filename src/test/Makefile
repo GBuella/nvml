@@ -205,6 +205,7 @@ OTHER_TESTS = \
 	util_poolset_foreach
 
 PMEM_TESTS = \
+	pmem_deep_flush\
 	pmem_is_pmem\
 	pmem_is_pmem_linux\
 	pmem_map_file\

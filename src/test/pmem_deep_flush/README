@@ -1,0 +1,9 @@
+Non-Volatile Memory Library
+
+This is src/test/pmem_deep_flush/README.
+
+This directory contains a test for pmem_deep_flush().
+
+The program in pmem_deep_flush.c takes a file as an argument, memory
+maps that file, and prints out the return value from pmem_deep_flush()
+on the resulting range, and ranges that overlap with it.
