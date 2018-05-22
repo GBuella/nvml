@@ -387,9 +387,7 @@ blk_init(struct blk_bench *bb, struct benchmark_args *args)
 	auto *ba = (struct blk_args *)args->opts;
 	assert(ba != nullptr);
 
-	char path[PATH_MAX];
-	if (util_safe_strcpy(path, args->fname, sizeof(path)) != 0)
-		return -1;
+	const char *path = args->fname;
 
 	bb->type = parse_op_type(ba->type_str);
 	if (bb->type == OP_TYPE_UNKNOWN) {
@@ -437,9 +435,7 @@ blk_init(struct blk_bench *bb, struct benchmark_args *args)
 		if (ret == -1)
 			return -1;
 
-		if (util_safe_strcpy(path, POOLSET_PATH, sizeof(path)) != 0)
-			return -1;
-
+		path = POOLSET_PATH;
 		ba->fsize = 0;
 	}
 
@@ -592,13 +588,10 @@ static int
 blk_exit(struct benchmark *bench, struct benchmark_args *args)
 {
 	auto *bb = (struct blk_bench *)pmembench_get_priv(bench);
-	char path[PATH_MAX];
-	if (util_safe_strcpy(path, args->fname, sizeof(path)) != 0)
-		return -1;
+	const char *path = args->fname;
 
 	if (args->is_dynamic_poolset) {
-		if (util_safe_strcpy(path, POOLSET_PATH, sizeof(path)) != 0)
-			return -1;
+		path = POOLSET_PATH;
 	}
 
 	int result;

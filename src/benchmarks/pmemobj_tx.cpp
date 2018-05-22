@@ -938,9 +938,7 @@ obj_tx_init(struct benchmark *bench, struct benchmark_args *args)
 	assert(args != nullptr);
 	assert(args->opts != nullptr);
 
-	char path[PATH_MAX];
-	if (util_safe_strcpy(path, args->fname, sizeof(path)) != 0)
-		return -1;
+	const char *path = args->fname;
 
 	pmembench_set_priv(bench, &obj_bench);
 
@@ -1028,9 +1026,7 @@ obj_tx_init(struct benchmark *bench, struct benchmark_args *args)
 		if (ret == -1)
 			goto free_all;
 
-		if (util_safe_strcpy(path, POOLSET_PATH, sizeof(path)) != 0)
-			goto free_all;
-
+		path = POOLSET_PATH;
 		psize = 0;
 	}
 

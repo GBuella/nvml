@@ -463,9 +463,7 @@ log_init(struct benchmark *bench, struct benchmark_args *args)
 	assert(args->opts != nullptr);
 	struct benchmark_info *bench_info;
 
-	char path[PATH_MAX];
-	if (util_safe_strcpy(path, args->fname, sizeof(path)) != 0)
-		return -1;
+	const char *path = args->fname;
 
 	auto *lb = (struct log_bench *)malloc(sizeof(struct log_bench));
 
@@ -527,8 +525,7 @@ log_init(struct benchmark *bench, struct benchmark_args *args)
 		if (ret == -1)
 			goto err_free_lb;
 
-		if (util_safe_strcpy(path, POOLSET_PATH, sizeof(path)) != 0)
-			goto err_free_lb;
+		path = POOLSET_PATH;
 
 		lb->psize = 0;
 	}

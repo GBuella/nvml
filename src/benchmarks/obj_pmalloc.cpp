@@ -114,9 +114,7 @@ obj_init(struct benchmark *bench, struct benchmark_args *args)
 	assert(args != nullptr);
 	assert(args->opts != nullptr);
 
-	char path[PATH_MAX];
-	if (util_safe_strcpy(path, args->fname, sizeof(path)) != 0)
-		return -1;
+	const char *path = args->fname;
 
 	if (((struct prog_args *)(args->opts))->minsize >= args->dsize) {
 		fprintf(stderr, "Wrong params - allocation size\n");
@@ -164,9 +162,7 @@ obj_init(struct benchmark *bench, struct benchmark_args *args)
 		if (ret == -1)
 			goto free_ob;
 
-		if (util_safe_strcpy(path, POOLSET_PATH, sizeof(path)) != 0)
-			goto free_ob;
-
+		path = POOLSET_PATH;
 		poolsize = 0;
 	}
 

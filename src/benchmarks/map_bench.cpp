@@ -496,9 +496,7 @@ map_common_init(struct benchmark *bench, struct benchmark_args *args)
 	assert(args);
 	assert(args->opts);
 
-	char path[PATH_MAX];
-	if (util_safe_strcpy(path, args->fname, sizeof(path)) != 0)
-		return -1;
+	const char *path = args->fname;
 
 	size_t size_per_key;
 	struct map_bench *map_bench =
@@ -560,9 +558,7 @@ map_common_init(struct benchmark *bench, struct benchmark_args *args)
 		if (ret == -1)
 			goto err_free_bench;
 
-		if (util_safe_strcpy(path, POOLSET_PATH, sizeof(path)) != 0)
-			goto err_free_bench;
-
+		path = POOLSET_PATH;
 		map_bench->pool_size = 0;
 	}
 
